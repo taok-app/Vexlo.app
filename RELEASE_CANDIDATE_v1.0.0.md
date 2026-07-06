@@ -196,7 +196,7 @@ Vexlo AI v1.0.0 - The AI Engineering Workspace
 ```markdown
 # Vexlo AI v1.0.0
 
-The AI Engineering Workspace — powered by Vercel Sandbox and AI Gateway.
+From idea to production, in one AI engineering workspace.
 
 ## What's New in v1.0.0
 

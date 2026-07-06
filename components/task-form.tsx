@@ -399,26 +399,22 @@ export function TaskForm({
     <div className="w-full max-w-2xl">
       <div className="text-center mb-8">
         <h1 className="text-4xl font-bold mb-4">Vexlo AI</h1>
-        <p className="text-lg text-muted-foreground mb-2">
-          The AI Engineering Workspace — powered by{' '}
-          <a
-            href="https://vercel.com/docs/sandbox"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="underline hover:no-underline"
-          >
+        <p className="text-lg text-muted-foreground mb-4">
+          From idea to production, in one AI engineering workspace.
+        </p>
+        <p className="text-sm text-muted-foreground mb-6 max-w-lg mx-auto leading-relaxed">
+          Plan, build, test, review, and deploy software from a single AI engineering workspace. Vexlo keeps your entire development workflow in one place, so you can focus on building instead of switching between tools.
+        </p>
+        <div className="flex items-center justify-center gap-4 text-xs text-muted-foreground mb-8">
+          <span>Built on trusted developer infrastructure:</span>
+          <a href="https://vercel.com/docs/sandbox" target="_blank" rel="noopener noreferrer" className="hover:text-foreground transition-colors">
             Vercel Sandbox
-          </a>{' '}
-          and{' '}
-          <a
-            href="https://vercel.com/docs/ai-gateway"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="underline hover:no-underline"
-          >
+          </a>
+          <span>•</span>
+          <a href="https://vercel.com/docs/ai-gateway" target="_blank" rel="noopener noreferrer" className="hover:text-foreground transition-colors">
             AI Gateway
           </a>
-        </p>
+        </div>
       </div>
 
       <form onSubmit={handleSubmit}>
