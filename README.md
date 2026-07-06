@@ -40,8 +40,8 @@ For detailed setup instructions, see the [Local Development Setup](#local-develo
 
 Or run locally:
 ```bash
-git clone https://github.com/vercel-labs/coding-agent-template.git
-cd coding-agent-template
+git clone https://github.com/vercel-labs/vexlo-ai.git
+cd vexlo-ai
 pnpm install
 # Set up .env.local with required variables
 pnpm db:push
@@ -173,8 +173,8 @@ Connect MCP Servers to extend Claude Code with additional tools and integrations
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/vercel-labs/coding-agent-template.git
-cd coding-agent-template
+git clone https://github.com/vercel-labs/vexlo-ai.git
+cd vexlo-ai
 ```
 
 ### 2. Install dependencies
@@ -274,7 +274,7 @@ Based on your `NEXT_PUBLIC_AUTH_PROVIDERS` configuration, you'll need to create 
 1. Go to [GitHub Developer Settings](https://github.com/settings/developers)
 2. Click "New OAuth App"
 3. Fill in the details:
-   - **Application name**: Your app name (e.g., "My Coding Agent")
+   - **Application name**: Your app name (e.g., "Vexlo AI")
    - **Homepage URL**: `http://localhost:3000` (or your production URL)
    - **Authorization callback URL**: `http://localhost:3000/api/auth/github/callback`
 4. Click "Register application"

@@ -450,7 +450,7 @@ async function processTask(
         taskId,
         repoUrl,
         githubToken,
-        gitAuthorName: githubUser?.name || githubUser?.username || 'Coding Agent',
+        gitAuthorName: githubUser?.name || githubUser?.username || 'Vexlo AI',
         gitAuthorEmail: githubUser?.username ? `${githubUser.username}@users.noreply.github.com` : 'agent@example.com',
         apiKeys,
         timeout: `${maxDuration}m`,
