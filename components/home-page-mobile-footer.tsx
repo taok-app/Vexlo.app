@@ -5,7 +5,7 @@ import { GitHubIcon } from '@/components/icons/github-icon'
 import { VERCEL_DEPLOY_URL } from '@/lib/constants'
 import { formatAbbreviatedNumber } from '@/lib/utils/format-number'
 
-const GITHUB_REPO_URL = 'https://github.com/vercel-labs/coding-agent-template'
+const GITHUB_REPO_URL = 'https://github.com/vercel-labs/vexlo-ai'
 
 interface HomePageMobileFooterProps {
   initialStars?: number

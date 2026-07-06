@@ -1,6 +1,6 @@
 {
-  "name": "coding-agent-template",
-  "version": "2.0.0",
+  "name": "vexlo-ai",
+  "version": "1.0.0",
   "private": true,
   "scripts": {
     "dev": "next dev --webpack",
