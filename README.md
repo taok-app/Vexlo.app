@@ -274,7 +274,7 @@ Based on your `NEXT_PUBLIC_AUTH_PROVIDERS` configuration, you'll need to create 
 1. Go to [GitHub Developer Settings](https://github.com/settings/developers)
 2. Click "New OAuth App"
 3. Fill in the details:
-   - **Application name**: Your app name (e.g., "My Coding Agent")
+   - **Application name**: Your app name (e.g., "Vexlo AI")
    - **Homepage URL**: `http://localhost:3000` (or your production URL)
    - **Authorization callback URL**: `http://localhost:3000/api/auth/github/callback`
 4. Click "Register application"

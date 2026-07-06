@@ -33,7 +33,7 @@ export async function generateMetadata({ params }: LayoutPageProps): Promise<Met
   const { owner, repo } = await params
 
   return {
-    title: `${owner}/${repo} - Coding Agent Platform`,
+    title: `${owner}/${repo} - Vexlo AI`,
     description: 'View repository commits, issues, and pull requests',
   }
 }
