@@ -189,14 +189,14 @@ git tag -a v1.0.0 -m "Vexlo AI v1.0.0 - Initial public release"
 
 ### GitHub Release Title
 ```
-Vexlo AI v1.0.0 - The AI Engineering Workspace
+Vexlo AI v1.0.0 - From idea to production
 ```
 
 ### GitHub Release Description
 ```markdown
 # Vexlo AI v1.0.0
 
-The AI Engineering Workspace — powered by Vercel Sandbox and AI Gateway.
+From idea to production, in one AI engineering workspace.
 
 ## What's New in v1.0.0
 

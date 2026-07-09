@@ -528,14 +528,14 @@ export function HomePageContent({
           const error = await response.json()
           // Show detailed message for rate limits, or generic error message
           toast.error(error.message || error.error || 'Failed to create task')
-          // TODO: Remove the optimistic task on error
-          await refreshTasks() // For now, just refresh to remove the optimistic task
+          // Remove the optimistic task by refreshing from server
+          await refreshTasks()
         }
       } catch (error) {
         console.error('Error creating task:', error)
         toast.error('Failed to create task')
-        // TODO: Remove the optimistic task on error
-        await refreshTasks() // For now, just refresh to remove the optimistic task
+        // Remove the optimistic task by refreshing from server
+        await refreshTasks()
       } finally {
         setIsSubmitting(false)
       }

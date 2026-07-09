@@ -22,7 +22,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: 'Vexlo AI',
   description:
-    'The AI Engineering Workspace — powered by Vercel Sandbox and AI Gateway',
+    'From idea to production, in one AI engineering workspace.',
 }
 
 export default function RootLayout({

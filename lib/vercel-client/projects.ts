@@ -56,8 +56,7 @@ export async function createProject(
 
     const response = await vercel.projects.createProject({
       teamId, // Pass teamId at the top level
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      requestBody: requestBody as any,
+      requestBody: requestBody as unknown as Parameters<typeof vercel.projects.createProject>[0]['requestBody'],
     })
 
     console.log('Successfully created Vercel project')

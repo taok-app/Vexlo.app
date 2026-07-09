@@ -763,6 +763,7 @@ export function TaskChat({ taskId, task }: TaskChatProps) {
               {prComments.map((comment) => (
                 <div key={comment.id} className="px-2">
                   <div className="flex items-start gap-2 mb-2">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={comment.user.avatar_url}
                       alt={comment.user.login}

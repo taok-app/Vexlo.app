@@ -1,6 +1,6 @@
 # Vexlo AI
 
-The AI Engineering Workspace — powered by Vercel Sandbox and AI Gateway. An advanced platform for building AI-powered coding agents that supports Claude Code, OpenAI's Codex CLI, GitHub Copilot CLI, Cursor CLI, Google Gemini CLI, and opencode with [Vercel Sandbox](https://vercel.com/docs/vercel-sandbox) to automatically execute coding tasks on your repositories.
+From idea to production, in one AI engineering workspace. An advanced platform for building AI-powered coding agents that supports Claude Code, OpenAI's Codex CLI, GitHub Copilot CLI, Cursor CLI, Google Gemini CLI, and opencode with [Vercel Sandbox](https://vercel.com/docs/vercel-sandbox) to automatically execute coding tasks on your repositories.
 
 ![Vexlo AI Screenshot](screenshot.png)
 

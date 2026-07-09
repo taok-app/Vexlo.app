@@ -375,6 +375,7 @@ export function RepoPullRequests({ owner, repo }: RepoPullRequestsProps) {
 
                   <div className="flex items-center gap-4 text-xs text-muted-foreground">
                     <span className="flex items-center gap-1">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={pr.user.avatar_url} alt={pr.user.login} className="h-4 w-4 rounded-full" />
                       {pr.user.login}
                     </span>
