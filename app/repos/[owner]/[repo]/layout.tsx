@@ -1,4 +1,5 @@
 import { RepoLayout } from '@/components/repo-layout'
+import { AppLayoutWrapper } from '@/components/app-layout-wrapper'
 import { getServerSession } from '@/lib/session/get-server-session'
 import { getGitHubStars } from '@/lib/github-stars'
 import { Metadata } from 'next'
@@ -17,15 +18,17 @@ export default async function Layout({ params, children }: LayoutPageProps) {
   const stars = await getGitHubStars()
 
   return (
-    <RepoLayout
-      owner={owner}
-      repo={repo}
-      user={session?.user ?? null}
-      authProvider={session?.authProvider ?? null}
-      initialStars={stars}
-    >
-      {children}
-    </RepoLayout>
+    <AppLayoutWrapper>
+      <RepoLayout
+        owner={owner}
+        repo={repo}
+        user={session?.user ?? null}
+        authProvider={session?.authProvider ?? null}
+        initialStars={stars}
+      >
+        {children}
+      </RepoLayout>
+    </AppLayoutWrapper>
   )
 }
 
