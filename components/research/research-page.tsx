@@ -17,19 +17,32 @@ import {
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { AlertCircle } from 'lucide-react'
 
-interface FollowupMessage {
-  question: string
-  answer: string
-}
-
 function ResearchContent() {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [showNewDialog, setShowNewDialog] = useState(false)
-  const [followupMessages, setFollowupMessages] = useState<Record<string, FollowupMessage[]>>({})
 
-  // Queries
-  const { data: sessions = [], isLoading: isLoadingSessions, error: sessionsError } = useResearchSessions()
-  const { data: selectedSession, isLoading: isLoadingDetail } = useResearchSession(selectedId)
+  // List query
+  const {
+    data: sessions = [],
+    isLoading: isLoadingSessions,
+    isError: isSessionsError,
+    refetch: refetchSessions,
+  } = useResearchSessions()
+
+  // Resolve which session is displayed (auto-select first on load)
+  const resolvedSelectedId = selectedId ?? sessions[0]?.id ?? null
+
+  // Detail query — returns { session, sources, followups }
+  const {
+    data: detailData,
+    isLoading: isLoadingDetail,
+    isError: isDetailError,
+    refetch: refetchDetail,
+  } = useResearchSession(resolvedSelectedId)
+
+  const resolvedSession = detailData?.session
+  const sources = detailData?.sources ?? []
+  const followups = detailData?.followups ?? []
 
   // Mutations
   const createMutation = useCreateSession()
@@ -37,15 +50,11 @@ function ResearchContent() {
   const exportMutation = useExportReport()
   const followupMutation = useFollowup()
 
-  // Auto-select first session on initial load
-  const resolvedSelectedId = selectedId ?? sessions[0]?.id ?? null
-  const resolvedSession = selectedId ? selectedSession : sessions[0]
-
   function handleSelect(id: string) {
     setSelectedId(id)
   }
 
-  function handleCreate(payload: { title?: string; query: string; tags: string[] }) {
+  function handleCreate(payload: { title?: string; query: string }) {
     createMutation.mutate(payload, {
       onSuccess: (session) => {
         setSelectedId(session.id)
@@ -57,29 +66,15 @@ function ResearchContent() {
   function handleDelete(id: string) {
     deleteMutation.mutate(id, {
       onSuccess: () => {
-        if (selectedId === id) {
-          setSelectedId(null)
-        }
+        if (selectedId === id) setSelectedId(null)
       },
     })
   }
 
   function handleFollowup(question: string) {
     if (!resolvedSelectedId) return
-    followupMutation.mutate(
-      { id: resolvedSelectedId, question },
-      {
-        onSuccess: (data) => {
-          setFollowupMessages((prev) => ({
-            ...prev,
-            [resolvedSelectedId]: [...(prev[resolvedSelectedId] ?? []), { question: data.question, answer: data.answer }],
-          }))
-        },
-      },
-    )
+    followupMutation.mutate({ id: resolvedSelectedId, question })
   }
-
-  const currentFollowups = resolvedSelectedId ? (followupMessages[resolvedSelectedId] ?? []) : []
 
   return (
     <div className="flex-1 bg-background text-foreground min-h-screen">
@@ -92,12 +87,12 @@ function ResearchContent() {
           </p>
         </div>
 
-        {/* Error state */}
-        {sessionsError && (
+        {/* Top-level error (list failed to load and nothing cached) */}
+        {isSessionsError && sessions.length === 0 && (
           <Alert variant="destructive" className="mb-4">
             <AlertCircle className="size-4" />
             <AlertTitle>Failed to load sessions</AlertTitle>
-            <AlertDescription>{(sessionsError as Error).message}</AlertDescription>
+            <AlertDescription>Unable to reach the server. Please try again.</AlertDescription>
           </Alert>
         )}
 
@@ -109,27 +104,35 @@ function ResearchContent() {
               sessions={sessions}
               selectedId={resolvedSelectedId}
               isLoading={isLoadingSessions}
+              isError={isSessionsError}
               onSelect={handleSelect}
               onNew={() => setShowNewDialog(true)}
+              onRetry={() => refetchSessions()}
             />
           </div>
 
           {/* Column 2: Session detail + follow-ups */}
           <SessionDetail
             session={resolvedSession}
-            isLoading={isLoadingDetail && !!selectedId}
+            followups={followups}
+            isLoading={isLoadingDetail && !!resolvedSelectedId}
+            isError={isDetailError}
             isDeleting={deleteMutation.isPending}
             isExporting={exportMutation.isPending}
             isSubmittingFollowup={followupMutation.isPending}
-            followupMessages={currentFollowups}
             onDelete={handleDelete}
             onExport={(id, format) => exportMutation.mutate({ id, format })}
             onFollowup={handleFollowup}
+            onRetry={() => refetchDetail()}
           />
 
           {/* Column 3: Sources */}
           <div className="lg:sticky lg:top-6 lg:max-h-[calc(100vh-8rem)]">
-            <SourcesPanel session={resolvedSession} isLoading={isLoadingDetail && !!selectedId} />
+            <SourcesPanel
+              sources={sources}
+              isLoading={isLoadingDetail && !!resolvedSelectedId}
+              hasSession={!!resolvedSession}
+            />
           </div>
         </div>
       </div>

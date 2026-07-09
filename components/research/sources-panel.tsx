@@ -5,11 +5,12 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Badge } from '@/components/ui/badge'
 import { ExternalLink, Link2 } from 'lucide-react'
-import type { ResearchSession } from '@/lib/research/store'
+import type { ResearchSource } from '@/lib/db/schema'
 
 interface SourcesPanelProps {
-  session: ResearchSession | undefined
+  sources: ResearchSource[]
   isLoading: boolean
+  hasSession: boolean
 }
 
 function getDomain(url: string) {
@@ -20,16 +21,16 @@ function getDomain(url: string) {
   }
 }
 
-export function SourcesPanel({ session, isLoading }: SourcesPanelProps) {
+export function SourcesPanel({ sources, isLoading, hasSession }: SourcesPanelProps) {
   return (
     <Card className="flex flex-col h-full">
       <CardHeader className="pb-3">
         <CardTitle className="text-sm font-semibold flex items-center gap-2">
           <Link2 className="size-4" />
           Sources
-          {session && session.sources.length > 0 && (
+          {sources.length > 0 && (
             <Badge variant="secondary" className="font-mono text-xs">
-              {session.sources.length}
+              {sources.length}
             </Badge>
           )}
         </CardTitle>
@@ -43,16 +44,16 @@ export function SourcesPanel({ session, isLoading }: SourcesPanelProps) {
                 <Skeleton key={i} className="h-12 w-full rounded-md" />
               ))}
             </div>
-          ) : !session || session.sources.length === 0 ? (
+          ) : !hasSession || sources.length === 0 ? (
             <div className="flex flex-col items-center justify-center gap-2 py-10 text-center">
               <Link2 className="size-7 text-muted-foreground/30" />
               <p className="text-xs text-muted-foreground">
-                {session ? 'No sources yet for this session.' : 'Select a session to see its sources.'}
+                {hasSession ? 'No sources yet for this session.' : 'Select a session to see its sources.'}
               </p>
             </div>
           ) : (
             <div className="flex flex-col gap-2">
-              {session.sources.map((src, idx) => (
+              {sources.map((src, idx) => (
                 <a
                   key={src.id}
                   href={src.url}

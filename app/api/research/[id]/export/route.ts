@@ -1,52 +1,36 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { researchStore } from '@/lib/research/store'
+import { getServerSession } from '@/lib/session/get-server-session'
+import { exportSchema, parseBody } from '@/lib/research/store'
+import * as service from '@/lib/research/service'
 
 type Params = { params: Promise<{ id: string }> }
 
 export async function POST(req: NextRequest, { params }: Params) {
+  const session = await getServerSession()
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
   const { id } = await params
-  const session = researchStore.get(id)
-  if (!session) return NextResponse.json({ error: 'Not found' }, { status: 404 })
-
-  const body = await req.json().catch(() => ({}))
-  const format: 'markdown' | 'json' = body.format ?? 'markdown'
-
-  if (format === 'json') {
-    return NextResponse.json({ report: session })
+  const { data, error } = await parseBody(req, exportSchema)
+  if (error) {
+    return NextResponse.json({ error }, { status: 422 })
   }
 
-  // Build a Markdown report
-  const lines: string[] = [
-    `# ${session.title}`,
-    '',
-    `**Query:** ${session.query}`,
-    `**Status:** ${session.status}`,
-    `**Created:** ${new Date(session.createdAt).toLocaleString()}`,
-    `**Updated:** ${new Date(session.updatedAt).toLocaleString()}`,
-  ]
-
-  if (session.tags.length > 0) {
-    lines.push(`**Tags:** ${session.tags.join(', ')}`)
+  if (data!.format === 'json') {
+    const result = await service.buildJsonReport(id, session.user.id)
+    if (!result) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+    return NextResponse.json({ report: result })
   }
 
-  if (session.summary) {
-    lines.push('', '## Summary', '', session.summary)
-  }
+  const result = await service.buildMarkdownReport(id, session.user.id)
+  if (!result) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
-  if (session.sources.length > 0) {
-    lines.push('', '## Sources', '')
-    session.sources.forEach((src) => {
-      lines.push(`- [${src.title}](${src.url})`)
-    })
-  }
-
-  const markdown = lines.join('\n')
-
-  return new NextResponse(markdown, {
+  return new NextResponse(result.markdown, {
     status: 200,
     headers: {
       'Content-Type': 'text/markdown; charset=utf-8',
-      'Content-Disposition': `attachment; filename="${session.title.replace(/[^a-z0-9\-]/gi, '_')}.md"`,
+      'Content-Disposition': `attachment; filename="${result.filename}"`,
     },
   })
 }

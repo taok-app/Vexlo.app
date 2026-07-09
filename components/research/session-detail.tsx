@@ -4,7 +4,13 @@ import { useState } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -18,37 +24,33 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import {
   BookOpen,
   ChevronDown,
   Clock,
   Download,
-  ExternalLink,
   Loader2,
   MessageSquare,
   MoreVertical,
+  RefreshCw,
   SendHorizontal,
-  Tag,
   Trash2,
 } from 'lucide-react'
-import { cn } from '@/lib/utils'
-import type { ResearchSession } from '@/lib/research/store'
-
-interface FollowupMessage {
-  question: string
-  answer: string
-}
+import type { ResearchSession, ResearchFollowup } from '@/lib/db/schema'
 
 interface SessionDetailProps {
   session: ResearchSession | undefined
+  followups: ResearchFollowup[]
   isLoading: boolean
+  isError: boolean
   isDeleting: boolean
   isExporting: boolean
   isSubmittingFollowup: boolean
-  followupMessages: FollowupMessage[]
   onDelete: (id: string) => void
   onExport: (id: string, format: 'markdown' | 'json') => void
   onFollowup: (question: string) => void
+  onRetry: () => void
 }
 
 const STATUS_CONFIG: Record<
@@ -57,18 +59,21 @@ const STATUS_CONFIG: Record<
 > = {
   completed: { label: 'Completed', variant: 'default' },
   'in-progress': { label: 'In Progress', variant: 'secondary' },
+  pending: { label: 'Pending', variant: 'outline' },
   failed: { label: 'Failed', variant: 'destructive' },
 }
 
 export function SessionDetail({
   session,
+  followups,
   isLoading,
+  isError,
   isDeleting,
   isExporting,
   isSubmittingFollowup,
-  followupMessages,
   onDelete,
   onExport,
+  onRetry,
   onFollowup,
 }: SessionDetailProps) {
   const [question, setQuestion] = useState('')
@@ -81,7 +86,7 @@ export function SessionDetail({
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
-    if (e.key === 'Enter' && !e.nativeEvent.isComposing && !(e.nativeEvent as unknown as { isComposing: boolean }).isComposing) {
+    if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
       e.preventDefault()
       handleSendFollowup()
     }
@@ -89,7 +94,7 @@ export function SessionDetail({
 
   if (isLoading) {
     return (
-      <div className="flex flex-col gap-4 h-full">
+      <div className="flex flex-col gap-4">
         <Skeleton className="h-28 w-full" />
         <Skeleton className="h-40 w-full" />
         <Skeleton className="h-20 w-full" />
@@ -97,9 +102,23 @@ export function SessionDetail({
     )
   }
 
+  if (isError) {
+    return (
+      <Alert variant="destructive">
+        <AlertDescription className="flex items-center justify-between">
+          <span>Failed to load session.</span>
+          <Button size="sm" variant="outline" onClick={onRetry} className="gap-1.5 ml-3">
+            <RefreshCw className="size-3" />
+            Retry
+          </Button>
+        </AlertDescription>
+      </Alert>
+    )
+  }
+
   if (!session) {
     return (
-      <Card className="h-full flex items-center justify-center">
+      <Card className="flex items-center justify-center">
         <CardContent className="text-center py-12">
           <BookOpen className="size-10 text-muted-foreground/30 mx-auto mb-3" />
           <p className="text-sm font-medium text-muted-foreground">No session selected</p>
@@ -115,7 +134,7 @@ export function SessionDetail({
 
   return (
     <>
-      <div className="flex flex-col gap-4 h-full">
+      <div className="flex flex-col gap-4">
         {/* Header card */}
         <Card>
           <CardHeader className="pb-3">
@@ -123,12 +142,6 @@ export function SessionDetail({
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap mb-1">
                   <Badge variant={status.variant}>{status.label}</Badge>
-                  {session.tags.map((tag) => (
-                    <Badge key={tag} variant="outline" className="text-xs gap-1">
-                      <Tag className="size-2.5" />
-                      {tag}
-                    </Badge>
-                  ))}
                 </div>
                 <CardTitle className="text-base leading-snug">{session.title}</CardTitle>
                 <CardDescription className="mt-1 text-xs line-clamp-2">{session.query}</CardDescription>
@@ -181,48 +194,69 @@ export function SessionDetail({
                 })}
               </span>
               <span className="text-muted-foreground/40">·</span>
-              <span>Updated {new Date(session.updatedAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</span>
+              <span>
+                Updated{' '}
+                {new Date(session.updatedAt).toLocaleTimeString('en-US', {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })}
+              </span>
+              {session.sourceCount > 0 && (
+                <>
+                  <span className="text-muted-foreground/40">·</span>
+                  <span>
+                    {session.sourceCount} source{session.sourceCount !== 1 ? 's' : ''}
+                  </span>
+                </>
+              )}
             </div>
           </CardHeader>
         </Card>
 
-        {/* Summary */}
-        {session.summary && (
+        {/* Report content */}
+        {session.reportContent && (
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm">Summary</CardTitle>
+              <CardTitle className="text-sm">Report</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-sm text-muted-foreground leading-relaxed">{session.summary}</p>
+              <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">
+                {session.reportContent}
+              </p>
             </CardContent>
           </Card>
         )}
 
         {/* Follow-up conversation */}
-        <Card className="flex-1 flex flex-col min-h-0">
+        <Card className="flex flex-col min-h-0">
           <CardHeader className="pb-3 shrink-0">
             <CardTitle className="text-sm flex items-center gap-2">
               <MessageSquare className="size-4" />
               Follow-up Questions
+              {followups.length > 0 && (
+                <Badge variant="secondary" className="font-mono text-xs">
+                  {followups.length}
+                </Badge>
+              )}
             </CardTitle>
           </CardHeader>
 
-          <CardContent className="flex-1 flex flex-col gap-3 min-h-0 overflow-hidden">
-            <ScrollArea className="flex-1">
-              {followupMessages.length === 0 ? (
+          <CardContent className="flex flex-col gap-3">
+            <ScrollArea className="max-h-80">
+              {followups.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-8 text-center">
                   <MessageSquare className="size-7 text-muted-foreground/30 mb-2" />
                   <p className="text-xs text-muted-foreground">Ask a follow-up question about this research.</p>
                 </div>
               ) : (
                 <div className="flex flex-col gap-3 pr-1">
-                  {followupMessages.map((msg, i) => (
-                    <div key={i} className="flex flex-col gap-1.5">
+                  {[...followups].reverse().map((f) => (
+                    <div key={f.id} className="flex flex-col gap-1.5">
                       <div className="self-end max-w-[85%] rounded-lg bg-primary text-primary-foreground px-3 py-2 text-sm">
-                        {msg.question}
+                        {f.question}
                       </div>
                       <div className="self-start max-w-[90%] rounded-lg bg-muted px-3 py-2 text-sm text-muted-foreground leading-relaxed">
-                        {msg.answer}
+                        {f.answer}
                       </div>
                     </div>
                   ))}
@@ -237,7 +271,7 @@ export function SessionDetail({
             </ScrollArea>
 
             {/* Follow-up input */}
-            <div className="flex items-center gap-2 shrink-0">
+            <div className="flex items-center gap-2">
               <Input
                 placeholder="Ask a follow-up question..."
                 value={question}

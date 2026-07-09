@@ -19,24 +19,18 @@ interface NewSessionDialogProps {
   open: boolean
   isPending: boolean
   onOpenChange: (open: boolean) => void
-  onSubmit: (payload: { title?: string; query: string; tags: string[] }) => void
+  onSubmit: (payload: { title?: string; query: string }) => void
 }
 
 export function NewSessionDialog({ open, isPending, onOpenChange, onSubmit }: NewSessionDialogProps) {
   const [query, setQuery] = useState('')
   const [title, setTitle] = useState('')
-  const [tagsInput, setTagsInput] = useState('')
 
   function handleSubmit() {
     if (!query.trim()) return
-    const tags = tagsInput
-      .split(',')
-      .map((t) => t.trim())
-      .filter(Boolean)
-    onSubmit({ query: query.trim(), title: title.trim() || undefined, tags })
+    onSubmit({ query: query.trim(), title: title.trim() || undefined })
     setQuery('')
     setTitle('')
-    setTagsInput('')
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
@@ -79,18 +73,6 @@ export function NewSessionDialog({ open, isPending, onOpenChange, onSubmit }: Ne
               placeholder="Auto-generated from question if empty"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-            />
-          </div>
-
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="tags">
-              Tags <span className="text-muted-foreground text-xs">(comma-separated, optional)</span>
-            </Label>
-            <Input
-              id="tags"
-              placeholder="e.g. AI, performance, security"
-              value={tagsInput}
-              onChange={(e) => setTagsInput(e.target.value)}
             />
           </div>
         </div>

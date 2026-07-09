@@ -6,19 +6,21 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Skeleton } from '@/components/ui/skeleton'
-import { BookOpen, Clock, Plus, Microscope } from 'lucide-react'
-import type { ResearchSession } from '@/lib/research/store'
+import { BookOpen, Clock, Plus, Microscope, RefreshCw } from 'lucide-react'
+import type { ResearchSession } from '@/lib/db/schema'
 
 interface SessionListProps {
   sessions: ResearchSession[]
   selectedId: string | null
   isLoading: boolean
+  isError: boolean
   onSelect: (id: string) => void
   onNew: () => void
+  onRetry: () => void
 }
 
-function getTimeAgo(iso: string) {
-  const diff = Date.now() - new Date(iso).getTime()
+function getTimeAgo(date: Date) {
+  const diff = Date.now() - new Date(date).getTime()
   const mins = Math.floor(diff / 60_000)
   const hrs = Math.floor(diff / 3_600_000)
   const days = Math.floor(diff / 86_400_000)
@@ -26,22 +28,24 @@ function getTimeAgo(iso: string) {
   if (mins < 60) return `${mins}m ago`
   if (hrs < 24) return `${hrs}h ago`
   if (days < 7) return `${days}d ago`
-  return new Date(iso).toLocaleDateString()
+  return new Date(date).toLocaleDateString()
 }
 
 const STATUS_VARIANTS: Record<ResearchSession['status'], 'default' | 'secondary' | 'destructive' | 'outline'> = {
   completed: 'default',
   'in-progress': 'secondary',
+  pending: 'outline',
   failed: 'destructive',
 }
 
 const STATUS_LABELS: Record<ResearchSession['status'], string> = {
   completed: 'Done',
   'in-progress': 'Active',
+  pending: 'Pending',
   failed: 'Failed',
 }
 
-export function SessionList({ sessions, selectedId, isLoading, onSelect, onNew }: SessionListProps) {
+export function SessionList({ sessions, selectedId, isLoading, isError, onSelect, onNew, onRetry }: SessionListProps) {
   return (
     <Card className="flex flex-col h-full">
       <CardHeader className="pb-3">
@@ -69,6 +73,14 @@ export function SessionList({ sessions, selectedId, isLoading, onSelect, onNew }
               {Array.from({ length: 4 }).map((_, i) => (
                 <Skeleton key={i} className="h-16 w-full rounded-md" />
               ))}
+            </div>
+          ) : isError ? (
+            <div className="flex flex-col items-center justify-center gap-3 py-10 text-center">
+              <p className="text-sm text-destructive">Failed to load sessions.</p>
+              <Button size="sm" variant="outline" onClick={onRetry} className="gap-1.5">
+                <RefreshCw className="size-3" />
+                Retry
+              </Button>
             </div>
           ) : sessions.length === 0 ? (
             <div className="flex flex-col items-center justify-center gap-3 py-10 text-center">
@@ -100,20 +112,10 @@ export function SessionList({ sessions, selectedId, isLoading, onSelect, onNew }
                     <Clock className="size-3" />
                     <span>{getTimeAgo(s.createdAt)}</span>
                     <span className="text-muted-foreground/40">·</span>
-                    <span>{s.sources.length} source{s.sources.length !== 1 ? 's' : ''}</span>
+                    <span>
+                      {s.sourceCount} source{s.sourceCount !== 1 ? 's' : ''}
+                    </span>
                   </div>
-                  {s.tags.length > 0 && (
-                    <div className="flex flex-wrap gap-1 mt-1.5">
-                      {s.tags.slice(0, 3).map((tag) => (
-                        <span
-                          key={tag}
-                          className="inline-flex items-center px-1.5 py-0.5 rounded text-xs bg-muted text-muted-foreground"
-                        >
-                          {tag}
-                        </span>
-                      ))}
-                    </div>
-                  )}
                 </button>
               ))}
             </div>
