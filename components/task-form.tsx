@@ -399,26 +399,34 @@ export function TaskForm({
     <div className="w-full max-w-2xl">
       <div className="text-center mb-8">
         <h1 className="text-4xl font-bold mb-4">Vexlo AI</h1>
-        <p className="text-lg text-muted-foreground mb-2">
-          The AI Engineering Workspace — powered by{' '}
-          <a
-            href="https://vercel.com/docs/sandbox"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="underline hover:no-underline"
-          >
-            Vercel Sandbox
-          </a>{' '}
-          and{' '}
-          <a
-            href="https://vercel.com/docs/ai-gateway"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="underline hover:no-underline"
-          >
-            AI Gateway
-          </a>
+        <p className="text-lg text-muted-foreground mb-6">
+          From idea to production, in one AI engineering workspace.
         </p>
+        <div className="flex items-center justify-center gap-4 mb-8">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <a
+              href="https://vercel.com/docs/sandbox"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:text-foreground transition-colors"
+              title="Vercel Sandbox"
+            >
+              Vercel Sandbox
+            </a>
+          </div>
+          <div className="w-1 h-1 bg-muted-foreground rounded-full"></div>
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <a
+              href="https://vercel.com/docs/ai-gateway"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:text-foreground transition-colors"
+              title="AI Gateway"
+            >
+              AI Gateway
+            </a>
+          </div>
+        </div>
       </div>
 
       <form onSubmit={handleSubmit}>
