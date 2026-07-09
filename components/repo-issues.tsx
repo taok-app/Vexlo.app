@@ -274,6 +274,7 @@ export function RepoIssues({ owner, repo }: RepoIssuesProps) {
         {issues.map((issue) => (
           <Card key={issue.number} className="p-4 hover:bg-muted/50 transition-colors">
             <div className="flex items-start gap-3">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={issue.user.avatar_url}
                 alt={issue.user.login}

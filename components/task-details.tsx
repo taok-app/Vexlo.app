@@ -475,7 +475,7 @@ export function TaskDetails({ task, maxSandboxDuration = 300 }: TaskDetailsProps
     setLoadedFileHashes((prev) => ({ ...prev, [filename]: hash }))
   }, [])
 
-  const attemptCloseTab = (index: number, e?: React.MouseEvent) => {
+  const attemptCloseTab = useCallback((index: number, e?: React.MouseEvent) => {
     e?.stopPropagation()
     const currentTabs = openTabsByMode[viewMode]
     const fileToClose = currentTabs[index]
@@ -487,43 +487,55 @@ export function TaskDetails({ task, maxSandboxDuration = 300 }: TaskDetailsProps
     } else {
       closeTab(index)
     }
-  }
+  }, [viewMode, openTabsByMode, tabsWithUnsavedChanges, closeTab])
 
-  const closeTab = (index: number) => {
-    const currentTabs = openTabsByMode[viewMode]
-    const currentActiveIndex = activeTabIndexByMode[viewMode]
-    const fileToClose = currentTabs[index]
-    const newTabs = currentTabs.filter((_, i) => i !== index)
+  const closeTab = useCallback((index: number) => {
+    setOpenTabsByMode((prev) => {
+      const currentTabs = prev[viewMode] || []
+      const fileToClose = currentTabs[index]
+      const newTabs = currentTabs.filter((_, i) => i !== index)
 
-    setOpenTabsByMode((prev) => ({ ...prev, [viewMode]: newTabs }))
+      // Trigger additional state updates through a batch
+      setActiveTabIndexByMode((prevIndices) => {
+        const currentActiveIndex = prevIndices[viewMode] || 0
+        if (newTabs.length === 0) {
+          return { ...prevIndices, [viewMode]: 0 }
+        } else if (currentActiveIndex >= newTabs.length) {
+          return { ...prevIndices, [viewMode]: newTabs.length - 1 }
+        } else if (currentActiveIndex === index) {
+          return { ...prevIndices, [viewMode]: Math.max(0, index - 1) }
+        } else if (currentActiveIndex > index) {
+          return { ...prevIndices, [viewMode]: currentActiveIndex - 1 }
+        }
+        return prevIndices
+      })
 
-    // Remove from unsaved changes
-    setTabsWithUnsavedChanges((prev) => {
-      const newSet = new Set(prev)
-      newSet.delete(fileToClose)
-      return newSet
+      setSelectedFileByMode((prevFiles) => {
+        const currentTabs = prev[viewMode] || []
+        const newTabs = currentTabs.filter((_, i) => i !== index)
+        const currentActiveIndex = activeTabIndexByMode[viewMode] || 0
+        if (newTabs.length === 0) {
+          return { ...prevFiles, [viewMode]: undefined }
+        } else if (currentActiveIndex >= newTabs.length) {
+          return { ...prevFiles, [viewMode]: newTabs[newTabs.length - 1] }
+        } else if (currentActiveIndex === index) {
+          return { ...prevFiles, [viewMode]: newTabs[Math.max(0, index - 1)] }
+        }
+        return prevFiles
+      })
+
+      // Remove from unsaved changes
+      setTabsWithUnsavedChanges((prevSet) => {
+        const newSet = new Set(prevSet)
+        newSet.delete(fileToClose)
+        return newSet
+      })
+
+      return { ...prev, [viewMode]: newTabs }
     })
 
-    // Adjust active tab index
-    if (newTabs.length === 0) {
-      setActiveTabIndexByMode((prev) => ({ ...prev, [viewMode]: 0 }))
-      setSelectedFileByMode((prev) => ({ ...prev, [viewMode]: undefined }))
-      setSelectedItemIsFolderByMode((prev) => ({ ...prev, [viewMode]: false }))
-    } else if (currentActiveIndex >= newTabs.length) {
-      setActiveTabIndexByMode((prev) => ({ ...prev, [viewMode]: newTabs.length - 1 }))
-      setSelectedFileByMode((prev) => ({ ...prev, [viewMode]: newTabs[newTabs.length - 1] }))
-      setSelectedItemIsFolderByMode((prev) => ({ ...prev, [viewMode]: false }))
-    } else if (currentActiveIndex === index) {
-      // If closing the active tab, switch to the previous tab (or next if it's the first)
-      const newIndex = Math.max(0, index - 1)
-      setActiveTabIndexByMode((prev) => ({ ...prev, [viewMode]: newIndex }))
-      setSelectedFileByMode((prev) => ({ ...prev, [viewMode]: newTabs[newIndex] }))
-      setSelectedItemIsFolderByMode((prev) => ({ ...prev, [viewMode]: false }))
-    } else if (currentActiveIndex > index) {
-      // Adjust index if a tab before the active one was closed
-      setActiveTabIndexByMode((prev) => ({ ...prev, [viewMode]: currentActiveIndex - 1 }))
-    }
-  }
+    setSelectedItemIsFolderByMode((prev) => ({ ...prev, [viewMode]: false }))
+  }, [viewMode, activeTabIndexByMode])
 
   const handleCloseTabConfirm = (save: boolean) => {
     if (tabToClose === null) return
@@ -549,12 +561,12 @@ export function TaskDetails({ task, maxSandboxDuration = 300 }: TaskDetailsProps
     }
   }
 
-  const switchToTab = (index: number) => {
+  const switchToTab = useCallback((index: number) => {
     const currentTabs = openTabsByMode[viewMode]
     setActiveTabIndexByMode((prev) => ({ ...prev, [viewMode]: index }))
     setSelectedFileByMode((prev) => ({ ...prev, [viewMode]: currentTabs[index] }))
     setSelectedItemIsFolderByMode((prev) => ({ ...prev, [viewMode]: false }))
-  }
+  }, [viewMode, openTabsByMode])
 
   // Use optimistic status if available, otherwise use actual task status
   const currentStatus = optimisticStatus || task.status
@@ -601,7 +613,7 @@ export function TaskDetails({ task, maxSandboxDuration = 300 }: TaskDetailsProps
     }, 60000) // 60 seconds
 
     return () => clearInterval(interval)
-  }, [currentStatus, task.keepAlive, task.createdAt])
+  }, [currentStatus, task.keepAlive, task.createdAt, task.maxDuration])
 
   // Periodic sandbox health check
   useEffect(() => {
@@ -685,52 +697,6 @@ export function TaskDetails({ task, maxSandboxDuration = 300 }: TaskDetailsProps
       default:
         return null
     }
-  }
-
-  // Model mappings for all agents
-  const AGENT_MODELS: Record<string, Array<{ value: string; label: string }>> = {
-    claude: [
-      { value: 'claude-sonnet-4-5', label: 'Sonnet 4.5' },
-      { value: 'anthropic/claude-opus-4.6', label: 'Opus 4.6' },
-      { value: 'claude-haiku-4-5', label: 'Haiku 4.5' },
-    ],
-    codex: [
-      { value: 'openai/gpt-5', label: 'GPT-5' },
-      { value: 'gpt-5-codex', label: 'GPT-5-Codex' },
-      { value: 'openai/gpt-5-mini', label: 'GPT-5 mini' },
-      { value: 'openai/gpt-5-nano', label: 'GPT-5 nano' },
-      { value: 'gpt-5-pro', label: 'GPT-5 pro' },
-      { value: 'openai/gpt-4.1', label: 'GPT-4.1' },
-    ],
-    copilot: [
-      { value: 'claude-sonnet-4.5', label: 'Sonnet 4.5' },
-      { value: 'claude-sonnet-4', label: 'Sonnet 4' },
-      { value: 'claude-haiku-4.5', label: 'Haiku 4.5' },
-      { value: 'gpt-5', label: 'GPT-5' },
-    ],
-    cursor: [
-      { value: 'auto', label: 'Auto' },
-      { value: 'sonnet-4.5', label: 'Sonnet 4.5' },
-      { value: 'sonnet-4.5-thinking', label: 'Sonnet 4.5 Thinking' },
-      { value: 'gpt-5', label: 'GPT-5' },
-      { value: 'gpt-5-codex', label: 'GPT-5 Codex' },
-      { value: 'opus-4.1', label: 'Opus 4.1' },
-      { value: 'grok', label: 'Grok' },
-    ],
-    gemini: [
-      { value: 'gemini-3-pro-preview', label: 'Gemini 3 Pro Preview' },
-      { value: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro' },
-      { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash' },
-    ],
-    opencode: [
-      { value: 'gpt-5', label: 'GPT-5' },
-      { value: 'gpt-5-mini', label: 'GPT-5 mini' },
-      { value: 'gpt-5-nano', label: 'GPT-5 nano' },
-      { value: 'gpt-4.1', label: 'GPT-4.1' },
-      { value: 'claude-sonnet-4-5', label: 'Sonnet 4.5' },
-      { value: 'claude-opus-4-5', label: 'Opus 4.5' },
-      { value: 'claude-haiku-4-5', label: 'Haiku 4.5' },
-    ],
   }
 
   // Get readable model name
@@ -1124,7 +1090,7 @@ export function TaskDetails({ task, maxSandboxDuration = 300 }: TaskDetailsProps
 
     document.addEventListener('keydown', handleKeyDown)
     return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [openTabs, activeTabIndex])
+  }, [openTabs, activeTabIndex, attemptCloseTab, switchToTab])
 
   // Trigger refresh when task completes
   useEffect(() => {

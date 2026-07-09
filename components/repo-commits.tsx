@@ -178,11 +178,14 @@ export function RepoCommits({ owner, repo }: RepoCommitsProps) {
           <Card key={commit.sha} className="p-4 hover:bg-muted/50 transition-colors">
             <div className="flex items-start gap-3">
               {commit.author?.avatar_url ? (
-                <img
-                  src={commit.author.avatar_url}
-                  alt={commit.author.login}
-                  className="h-10 w-10 rounded-full flex-shrink-0"
-                />
+                <>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={commit.author.avatar_url}
+                    alt={commit.author.login}
+                    className="h-10 w-10 rounded-full flex-shrink-0"
+                  />
+                </>
               ) : (
                 <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center flex-shrink-0">
                   <User className="h-5 w-5 text-muted-foreground" />

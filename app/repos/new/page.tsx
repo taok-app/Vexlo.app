@@ -199,6 +199,7 @@ export default function NewRepoPage() {
                     {session.user && (
                       <SelectItem value={session.user.username}>
                         <div className="flex items-center gap-2">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img src={session.user.avatar} alt={session.user.username} className="w-5 h-5 rounded-full" />
                           <span>{session.user.username}</span>
                         </div>
@@ -207,6 +208,7 @@ export default function NewRepoPage() {
                     {organizations.map((org) => (
                       <SelectItem key={org.login} value={org.login}>
                         <div className="flex items-center gap-2">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img src={org.avatar_url} alt={org.login} className="w-5 h-5 rounded-full" />
                           <span>{org.login}</span>
                         </div>
@@ -272,11 +274,13 @@ export default function NewRepoPage() {
                           <File className="w-7 h-7" strokeWidth={1} />
                         ) : (
                           <>
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img
                               src={template.imageLight}
                               alt={template.name}
                               className="max-w-[75%] max-h-[75%] w-auto h-auto object-contain dark:hidden"
                             />
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img
                               src={template.imageDark}
                               alt={template.name}
@@ -317,11 +321,13 @@ export default function NewRepoPage() {
                           <File className="w-12 h-12" strokeWidth={1} />
                         ) : (
                           <>
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img
                               src={template.imageLight}
                               alt={template.name}
                               className="max-w-[75%] max-h-[75%] w-auto h-auto object-contain dark:hidden"
                             />
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img
                               src={template.imageDark}
                               alt={template.name}

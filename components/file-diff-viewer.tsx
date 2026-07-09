@@ -307,6 +307,7 @@ export function FileDiffViewer({
       <div className="flex items-center justify-center h-full p-4 bg-muted/30">
         <div className="text-center max-w-full">
           <div className="mb-4">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={imageData}
               alt={diffData.filename}
