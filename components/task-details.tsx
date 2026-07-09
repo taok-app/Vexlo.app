@@ -475,19 +475,59 @@ export function TaskDetails({ task, maxSandboxDuration = 300 }: TaskDetailsProps
     setLoadedFileHashes((prev) => ({ ...prev, [filename]: hash }))
   }, [])
 
-  const attemptCloseTab = useCallback((index: number, e?: React.MouseEvent) => {
-    e?.stopPropagation()
-    const currentTabs = openTabsByMode[viewMode]
-    const fileToClose = currentTabs[index]
+  const attemptCloseTab = useCallback(
+    (index: number, e?: React.MouseEvent) => {
+      e?.stopPropagation()
+      const currentTabs = openTabsByMode[viewMode]
+      const fileToClose = currentTabs[index]
 
-    // Check if the tab has unsaved changes
-    if (tabsWithUnsavedChanges.has(fileToClose)) {
-      setTabToClose(index)
-      setShowCloseTabDialog(true)
-    } else {
-      closeTab(index)
-    }
-  }, [viewMode, openTabsByMode, tabsWithUnsavedChanges, closeTab])
+      // Check if the tab has unsaved changes
+      if (tabsWithUnsavedChanges.has(fileToClose)) {
+        setTabToClose(index)
+        setShowCloseTabDialog(true)
+      } else {
+        // Inline closeTab logic to avoid circular dependency
+        setOpenTabsByMode((prev) => {
+          const newTabs = currentTabs.filter((_, i) => i !== index)
+          const currentActiveIndex = activeTabIndexByMode[viewMode] || 0
+
+          setActiveTabIndexByMode((prevIndices) => {
+            if (newTabs.length === 0) {
+              return { ...prevIndices, [viewMode]: 0 }
+            } else if (currentActiveIndex >= newTabs.length) {
+              return { ...prevIndices, [viewMode]: newTabs.length - 1 }
+            } else if (currentActiveIndex === index) {
+              return { ...prevIndices, [viewMode]: Math.max(0, index - 1) }
+            } else if (currentActiveIndex > index) {
+              return { ...prevIndices, [viewMode]: currentActiveIndex - 1 }
+            }
+            return prevIndices
+          })
+
+          setSelectedFileByMode((prevFiles) => {
+            if (newTabs.length === 0) {
+              return { ...prevFiles, [viewMode]: undefined }
+            } else if (currentActiveIndex >= newTabs.length) {
+              return { ...prevFiles, [viewMode]: newTabs[newTabs.length - 1] }
+            } else if (currentActiveIndex === index) {
+              return { ...prevFiles, [viewMode]: newTabs[Math.max(0, index - 1)] }
+            }
+            return prevFiles
+          })
+
+          setTabsWithUnsavedChanges((prevSet) => {
+            const newSet = new Set(prevSet)
+            newSet.delete(fileToClose)
+            return newSet
+          })
+
+          setSelectedItemIsFolderByMode((prev) => ({ ...prev, [viewMode]: false }))
+          return { ...prev, [viewMode]: newTabs }
+        })
+      }
+    },
+    [viewMode, openTabsByMode, tabsWithUnsavedChanges, activeTabIndexByMode],
+  )
 
   const closeTab = useCallback((index: number) => {
     setOpenTabsByMode((prev) => {
@@ -703,10 +743,10 @@ export function TaskDetails({ task, maxSandboxDuration = 300 }: TaskDetailsProps
   const getModelName = (modelId: string | null, agent: string | null) => {
     if (!modelId || !agent) return modelId
 
-    const agentModels = AGENT_MODELS[agent.toLowerCase()]
+    const agentModels = AGENT_MODELS[agent.toLowerCase() as keyof typeof AGENT_MODELS]
     if (!agentModels) return modelId
 
-    const model = agentModels.find((m) => m.value === modelId)
+    const model = agentModels.find((m: { value: string; label: string }) => m.value === modelId)
     return model ? model.label : modelId
   }
 
