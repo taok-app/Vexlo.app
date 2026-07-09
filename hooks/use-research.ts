@@ -150,13 +150,13 @@ export function useExportReport() {
   })
 }
 
-export function useFollowup(sessionId: string | null) {
+export function useFollowup() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: ({ question }: { question: string }) => submitFollowup(sessionId!, question),
-    onSuccess: (data) => {
+    mutationFn: ({ id, question }: { id: string; question: string }) => submitFollowup(id, question),
+    onSuccess: (data, { id }) => {
       // Update the cached session with the new sources
-      qc.setQueryData(researchKeys.detail(sessionId!), data.session)
+      qc.setQueryData(researchKeys.detail(id), data.session)
       qc.invalidateQueries({ queryKey: researchKeys.lists() })
     },
     onError: (err: Error) => {

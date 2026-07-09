@@ -35,7 +35,7 @@ function ResearchContent() {
   const createMutation = useCreateSession()
   const deleteMutation = useDeleteSession()
   const exportMutation = useExportReport()
-  const followupMutation = useFollowup(selectedId)
+  const followupMutation = useFollowup()
 
   // Auto-select first session on initial load
   const resolvedSelectedId = selectedId ?? sessions[0]?.id ?? null
@@ -67,7 +67,7 @@ function ResearchContent() {
   function handleFollowup(question: string) {
     if (!resolvedSelectedId) return
     followupMutation.mutate(
-      { question },
+      { id: resolvedSelectedId, question },
       {
         onSuccess: (data) => {
           setFollowupMessages((prev) => ({
