@@ -1,4 +1,5 @@
 import { Metadata } from 'next'
+import { AppLayoutWrapper } from '@/components/app-layout-wrapper'
 
 interface LayoutProps {
   params: Promise<{
@@ -18,5 +19,5 @@ export async function generateMetadata({ params }: LayoutProps): Promise<Metadat
 }
 
 export default function Layout({ children }: LayoutProps) {
-  return children
+  return <AppLayoutWrapper>{children}</AppLayoutWrapper>
 }

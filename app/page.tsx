@@ -3,6 +3,14 @@ import { HomePageContent } from '@/components/home-page-content'
 import { getServerSession } from '@/lib/session/get-server-session'
 import { getGitHubStars } from '@/lib/github-stars'
 import { getMaxSandboxDuration } from '@/lib/db/settings'
+import { LandingNavbar } from '@/components/landing/navbar'
+import { HeroSection } from '@/components/landing/hero'
+import { TrustSection } from '@/components/landing/trust'
+import { PlatformTabs } from '@/components/landing/platform'
+import { AgentsSection } from '@/components/landing/agents'
+import { WorkflowSection } from '@/components/landing/workflow'
+import { FeaturesSection } from '@/components/landing/features'
+import { CTASection, LandingFooter } from '@/components/landing/cta-footer'
 
 export default async function Home() {
   const cookieStore = await cookies()
@@ -14,23 +22,39 @@ export default async function Home() {
 
   const session = await getServerSession()
 
-  // Get max sandbox duration for this user (user-specific > global > env var)
-  const maxSandboxDuration = await getMaxSandboxDuration(session?.user?.id)
-  const maxDuration = parseInt(cookieStore.get('max-duration')?.value || maxSandboxDuration.toString(), 10)
+  // Authenticated users see the workspace directly
+  if (session?.user) {
+    const maxSandboxDuration = await getMaxSandboxDuration(session.user.id)
+    const maxDuration = parseInt(cookieStore.get('max-duration')?.value || maxSandboxDuration.toString(), 10)
+    const stars = await getGitHubStars()
 
-  const stars = await getGitHubStars()
+    return (
+      <HomePageContent
+        initialSelectedOwner={selectedOwner}
+        initialSelectedRepo={selectedRepo}
+        initialInstallDependencies={installDependencies}
+        initialMaxDuration={maxDuration}
+        initialKeepAlive={keepAlive}
+        initialEnableBrowser={enableBrowser}
+        maxSandboxDuration={maxSandboxDuration}
+        user={session.user}
+        initialStars={stars}
+      />
+    )
+  }
 
+  // Unauthenticated users see the landing page
   return (
-    <HomePageContent
-      initialSelectedOwner={selectedOwner}
-      initialSelectedRepo={selectedRepo}
-      initialInstallDependencies={installDependencies}
-      initialMaxDuration={maxDuration}
-      initialKeepAlive={keepAlive}
-      initialEnableBrowser={enableBrowser}
-      maxSandboxDuration={maxSandboxDuration}
-      user={session?.user ?? null}
-      initialStars={stars}
-    />
+    <main className="bg-[#050508] min-h-screen">
+      <LandingNavbar />
+      <HeroSection />
+      <TrustSection />
+      <PlatformTabs />
+      <AgentsSection />
+      <WorkflowSection />
+      <FeaturesSection />
+      <CTASection />
+      <LandingFooter />
+    </main>
   )
 }

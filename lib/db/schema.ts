@@ -432,3 +432,94 @@ export type InsertSetting = z.infer<typeof insertSettingSchema>
 export const userConnections = accounts
 export type UserConnection = Account
 export type InsertUserConnection = InsertAccount
+
+// ---------------------------------------------------------------------------
+// Research tables
+// ---------------------------------------------------------------------------
+
+export const researchSessionStatusEnum = ['pending', 'in-progress', 'completed', 'failed'] as const
+export type ResearchSessionStatus = (typeof researchSessionStatusEnum)[number]
+
+export const researchSessions = pgTable('research_sessions', {
+  id: text('id').primaryKey(),
+  organizationId: text('organization_id'),
+  userId: text('user_id').notNull(),
+  title: text('title').notNull(),
+  query: text('query').notNull(),
+  status: text('status', { enum: researchSessionStatusEnum }).notNull().default('pending'),
+  reportContent: text('report_content'),
+  sourceCount: integer('source_count').notNull().default(0),
+  confidenceScore: text('confidence_score'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+})
+
+export const researchSources = pgTable('research_sources', {
+  id: text('id').primaryKey(),
+  sessionId: text('session_id').notNull(),
+  title: text('title').notNull(),
+  url: text('url').notNull(),
+  snippet: text('snippet'),
+  relevanceScore: text('relevance_score'),
+  sourceType: text('source_type').notNull().default('web'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+})
+
+export const researchFollowups = pgTable('research_followups', {
+  id: text('id').primaryKey(),
+  sessionId: text('session_id').notNull(),
+  question: text('question').notNull(),
+  answer: text('answer').notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+})
+
+// Zod schemas
+export const insertResearchSessionSchema = z.object({
+  id: z.string().optional(),
+  organizationId: z.string().optional(),
+  userId: z.string().min(1),
+  title: z.string().min(1),
+  query: z.string().min(1),
+  status: z.enum(researchSessionStatusEnum).default('pending'),
+  reportContent: z.string().optional(),
+  sourceCount: z.number().int().min(0).default(0),
+  confidenceScore: z.string().optional(),
+})
+
+export const selectResearchSessionSchema = z.object({
+  id: z.string(),
+  organizationId: z.string().nullable(),
+  userId: z.string(),
+  title: z.string(),
+  query: z.string(),
+  status: z.enum(researchSessionStatusEnum),
+  reportContent: z.string().nullable(),
+  sourceCount: z.number(),
+  confidenceScore: z.string().nullable(),
+  createdAt: z.date(),
+  updatedAt: z.date(),
+})
+
+export const selectResearchSourceSchema = z.object({
+  id: z.string(),
+  sessionId: z.string(),
+  title: z.string(),
+  url: z.string(),
+  snippet: z.string().nullable(),
+  relevanceScore: z.string().nullable(),
+  sourceType: z.string(),
+  createdAt: z.date(),
+})
+
+export const selectResearchFollowupSchema = z.object({
+  id: z.string(),
+  sessionId: z.string(),
+  question: z.string(),
+  answer: z.string(),
+  createdAt: z.date(),
+})
+
+export type ResearchSession = z.infer<typeof selectResearchSessionSchema>
+export type ResearchSource = z.infer<typeof selectResearchSourceSchema>
+export type ResearchFollowup = z.infer<typeof selectResearchFollowupSchema>
+export type InsertResearchSession = z.infer<typeof insertResearchSessionSchema>
