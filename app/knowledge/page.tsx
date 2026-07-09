@@ -2,21 +2,21 @@ import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { Breadcrumb } from '@/components/layout/breadcrumb'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Plus, BookOpen } from 'lucide-react'
+import { Plus, Brain, Upload } from 'lucide-react'
 
 export const metadata = {
-  title: 'Research',
-  description: 'Research sessions and analysis',
+  title: 'Knowledge',
+  description: 'Knowledge base and documentation',
 }
 
-export default function ResearchPage() {
+export default function KnowledgePage() {
   return (
     <DashboardLayout
       breadcrumb={
         <Breadcrumb
           items={[
             { label: 'Dashboard', href: '/dashboard' },
-            { label: 'Research' },
+            { label: 'Knowledge' },
           ]}
         />
       }
@@ -25,12 +25,12 @@ export default function ResearchPage() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="space-y-2">
-            <h1 className="text-3xl font-bold tracking-tight">Research</h1>
-            <p className="text-muted-foreground">Manage and analyze your research sessions</p>
+            <h1 className="text-3xl font-bold tracking-tight">Knowledge Base</h1>
+            <p className="text-muted-foreground">Manage your knowledge documents and resources</p>
           </div>
           <Button className="gap-2">
-            <Plus className="h-4 w-4" />
-            New Research
+            <Upload className="h-4 w-4" />
+            Upload Document
           </Button>
         </div>
 
@@ -38,26 +38,26 @@ export default function ResearchPage() {
         <div className="grid gap-4 md:grid-cols-3">
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium">Total Sessions</CardTitle>
+              <CardTitle className="text-sm font-medium">Total Documents</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">12</div>
+              <div className="text-2xl font-bold">24</div>
             </CardContent>
           </Card>
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium">Active Sessions</CardTitle>
+              <CardTitle className="text-sm font-medium">Storage Used</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">3</div>
+              <div className="text-2xl font-bold">4.2 GB</div>
             </CardContent>
           </Card>
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium">This Month</CardTitle>
+              <CardTitle className="text-sm font-medium">Last Updated</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">8</div>
+              <div className="text-2xl font-bold">Today</div>
             </CardContent>
           </Card>
         </div>
@@ -65,16 +65,16 @@ export default function ResearchPage() {
         {/* Empty State */}
         <Card>
           <CardHeader>
-            <CardTitle>Recent Sessions</CardTitle>
-            <CardDescription>Your research sessions will appear here</CardDescription>
+            <CardTitle>Recent Documents</CardTitle>
+            <CardDescription>Your documents will appear here</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="flex flex-col items-center justify-center py-12 text-center">
-              <BookOpen className="h-12 w-12 text-muted-foreground mb-4" />
-              <p className="text-muted-foreground mb-4">No research sessions yet</p>
+              <Brain className="h-12 w-12 text-muted-foreground mb-4" />
+              <p className="text-muted-foreground mb-4">No documents yet</p>
               <Button>
-                <Plus className="h-4 w-4 mr-2" />
-                Create Your First Research
+                <Upload className="h-4 w-4 mr-2" />
+                Upload Your First Document
               </Button>
             </div>
           </CardContent>
