@@ -6,10 +6,10 @@ import { getMaxSandboxDuration } from '@/lib/db/settings'
 import { LandingNavbar } from '@/components/landing/navbar'
 import { HeroSection } from '@/components/landing/hero'
 import { TrustSection } from '@/components/landing/trust'
-import { PlatformTabs } from '@/components/landing/platform'
+import { PlatformSection } from '@/components/landing/platform'
 import { AgentsSection } from '@/components/landing/agents'
 import { WorkflowSection } from '@/components/landing/workflow'
-import { FeaturesSection } from '@/components/landing/features'
+import { FeatureSections } from '@/components/landing/features'
 import { CTASection, LandingFooter } from '@/components/landing/cta-footer'
 
 export default async function Home() {
@@ -49,10 +49,10 @@ export default async function Home() {
       <LandingNavbar />
       <HeroSection />
       <TrustSection />
-      <PlatformTabs />
+      <PlatformSection />
       <AgentsSection />
       <WorkflowSection />
-      <FeaturesSection />
+      <FeatureSections />
       <CTASection />
       <LandingFooter />
     </main>
