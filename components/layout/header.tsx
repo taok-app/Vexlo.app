@@ -3,7 +3,8 @@
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Bell, Menu, Search } from 'lucide-react'
-import { useSession } from '@/lib/atoms/session'
+import { sessionAtom } from '@/lib/atoms/session'
+import { useAtomValue } from 'jotai'
 import { UserMenu } from './user-menu'
 import { ThemeToggle } from '@/components/theme-toggle'
 import { useState } from 'react'
@@ -15,7 +16,7 @@ interface HeaderProps {
 
 export function Header({ onMenuClick, breadcrumb }: HeaderProps) {
   const [searchFocus, setSearchFocus] = useState(false)
-  const session = useSession()
+  const session = useAtomValue(sessionAtom)
 
   return (
     <header className="h-16 border-b border-border bg-card sticky top-0 z-30">

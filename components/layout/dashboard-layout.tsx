@@ -3,7 +3,8 @@
 import { useState, useEffect } from 'react'
 import { Sidebar } from './sidebar'
 import { Header } from './header'
-import { useSession } from '@/lib/atoms/session'
+import { sessionAtom } from '@/lib/atoms/session'
+import { useAtomValue } from 'jotai'
 import { useRouter } from 'next/navigation'
 import { Skeleton } from '@/components/ui/skeleton'
 
@@ -15,7 +16,7 @@ interface DashboardLayoutProps {
 export function DashboardLayout({ children, breadcrumb }: DashboardLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [mounted, setMounted] = useState(false)
-  const session = useSession()
+  const session = useAtomValue(sessionAtom)
   const router = useRouter()
 
   // Close sidebar on route change
