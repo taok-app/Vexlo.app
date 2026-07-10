@@ -53,11 +53,11 @@ export function isRetryableHttpStatus(statusCode: number): boolean {
  */
 export function sanitizeHtml(html: string): string {
   // Remove script tags
-  let sanitized = html.replace(/<script[^>]*>.*?<\/script>/gis, '')
+  let sanitized = html.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
   // Remove style tags
-  sanitized = sanitized.replace(/<style[^>]*>.*?<\/style>/gis, '')
+  sanitized = sanitized.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
   // Remove comments
-  sanitized = sanitized.replace(/<!--.*?-->/gs, '')
+  sanitized = sanitized.replace(/<!--[\s\S]*?-->/g, '')
   return sanitized
 }
 

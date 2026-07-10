@@ -6,6 +6,7 @@
 
 import type { BrowserCapabilities } from './types'
 import { getBrowserRegistry } from './registry'
+import { NATIVE_FETCH_PROVIDER_ID } from './constants'
 import { createLogger } from '@/lib/logging'
 
 const logger = createLogger('browser:selector')
@@ -96,7 +97,7 @@ export class BrowserSelector {
       return []
     }
 
-    const selected = [providers[0]]
+    const selected = [providers.includes(NATIVE_FETCH_PROVIDER_ID) ? NATIVE_FETCH_PROVIDER_ID : providers[0]]
 
     logger.debug('Selected primary browser provider', {
       provider: selected[0],
@@ -183,8 +184,8 @@ export class BrowserSelector {
       return prioritized.length > 0 ? prioritized : available
     }
 
-    // Default: use all available providers
-    return available
+    // Native fetch is the deterministic baseline for automatic retrieval.
+    return available.includes(NATIVE_FETCH_PROVIDER_ID) ? [NATIVE_FETCH_PROVIDER_ID] : available
   }
 }
 

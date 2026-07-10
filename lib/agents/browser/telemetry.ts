@@ -1,38 +1,24 @@
-/**
- * Browser Telemetry
- * 
- * Emits structured events for browser operations monitoring.
- */
-
-import type { BrowserTelemetryEvent } from './types'
+import type { BrowserError, BrowserTelemetryEvent } from './types'
 import { createLogger } from '@/lib/logging'
 
 const logger = createLogger('browser:telemetry')
+type TelemetryListener = (event: BrowserTelemetryEvent) => void
 
-/**
- * Browser telemetry event emitter
- */
 export class BrowserTelemetry {
-  private listeners: Set<(event: BrowserTelemetryEvent) => void> = new Set()
+  private listeners = new Set<TelemetryListener>()
 
-  /**
-   * Subscribe to telemetry events
-   */
-  on(listener: (event: BrowserTelemetryEvent) => void): () => void {
+  on(listener: TelemetryListener): () => void {
     this.listeners.add(listener)
     return () => this.listeners.delete(listener)
   }
 
-  /**
-   * Emit a telemetry event
-   */
   emit(event: BrowserTelemetryEvent): void {
     logger.debug('Browser telemetry event', {
       type: event.type,
       provider: event.provider,
       durationMs: event.durationMs,
+      statusCode: event.statusCode,
     })
-
     for (const listener of this.listeners) {
       try {
         listener(event)
@@ -42,70 +28,73 @@ export class BrowserTelemetry {
     }
   }
 
-  /**
-   * Emit fetch started event
-   */
   fetchStarted(provider: string, url: string): void {
+    this.emit({ type: 'fetch_started', timestamp: new Date(), provider, metadata: { url } })
+  }
+
+  fetchCompleted(
+    provider: string,
+    metrics: {
+      durationMs: number
+      responseSize: number
+      statusCode: number
+      redirectCount: number
+      retryCount: number
+    },
+  ): void {
+    this.emit({ type: 'fetch_completed', timestamp: new Date(), provider, ...metrics })
+  }
+
+  fetchRedirected(provider: string, statusCode: number, redirectCount: number, url: string): void {
     this.emit({
-      type: 'fetch_started',
+      type: 'fetch_redirected',
       timestamp: new Date(),
       provider,
+      statusCode,
+      redirectCount,
       metadata: { url },
     })
   }
 
-  /**
-   * Emit fetch completed event
-   */
-  fetchCompleted(
-    provider: string,
-    durationMs: number,
-    contentSize: number,
-  ): void {
+  fetchRetried(provider: string, retryCount: number, error: Error): void {
     this.emit({
-      type: 'fetch_completed',
+      type: 'fetch_retried',
       timestamp: new Date(),
       provider,
-      durationMs,
-      contentSize,
+      retryCount,
+      error: this.toErrorInfo(error),
     })
   }
 
-  /**
-   * Emit extraction completed event
-   */
-  extractionCompleted(
-    durationMs: number,
-    contentSize: number,
-  ): void {
+  fetchTimeout(provider: string, timeoutMs: number): void {
     this.emit({
-      type: 'extraction_completed',
+      type: 'fetch_timeout',
       timestamp: new Date(),
-      durationMs,
-      contentSize,
+      provider,
+      timeoutCount: 1,
+      metadata: { timeoutMs },
     })
   }
 
-  /**
-   * Emit browser error event
-   */
-  browserError(
-    error: Error,
-    provider?: string,
-  ): void {
+  browserError(error: Error, provider?: string): void {
     this.emit({
       type: 'browser_error',
       timestamp: new Date(),
       provider,
-      error: {
-        code: error.name,
-        message: error.message,
-      },
+      failureCount: 1,
+      error: this.toErrorInfo(error),
     })
+  }
+
+  private toErrorInfo(error: Error) {
+    const browserError = error as Partial<BrowserError>
+    return {
+      code: browserError.code ?? error.name,
+      message: error.message,
+      timestamp: new Date(),
+      retryable: browserError.retryable ?? false,
+    }
   }
 }
 
-/**
- * Global browser telemetry instance
- */
 export const browserTelemetry = new BrowserTelemetry()
