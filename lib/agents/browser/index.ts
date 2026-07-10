@@ -38,10 +38,31 @@ export {
 } from './errors'
 
 export {
+  BaseBrowserProvider,
+} from './base'
+
+export {
   BrowserRegistry,
   getBrowserRegistry,
   resetBrowserRegistry,
 } from './registry'
+
+export type { BrowserProviderConfig } from './factory'
+export {
+  BrowserFactory,
+  getBrowserFactory,
+  resetBrowserFactory,
+} from './factory'
+
+export {
+  BrowserSelector,
+  BrowserSelectionStrategy,
+  type BrowserSelectionOptions,
+  getBrowserSelector,
+  resetBrowserSelector,
+} from './selector'
+
+export { BrowserAgent } from './agent'
 
 export {
   BrowserCache,
