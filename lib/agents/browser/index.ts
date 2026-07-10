@@ -1,9 +1,6 @@
-/**
- * Browser Agent Main Export
- */
-
 export type {
   BrowserRequest,
+  RawBrowserDocument,
   PageContent,
   PageMetadata,
   DocumentChunk,
@@ -17,43 +14,37 @@ export type {
   ChunkingOptions,
   CacheEntry,
   BrowserTelemetryEvent,
-  BrowserError,
+  BrowserTelemetryEventType,
 } from './types'
+export { BrowserError } from './types'
 
-export {
-  BrowserProvider,
-  type BrowserHealthStatus,
-} from './provider'
-
+export { BrowserProvider, type BrowserHealthStatus } from './provider'
 export {
   FetchError,
   HttpError,
   ExtractionError,
   ContentTooLargeError,
   UnsupportedContentError,
+  TimeoutError,
   BrowserTimeoutError,
+  NetworkError,
+  ValidationError,
+  ProviderUnavailableError,
   BrowserProviderUnavailableError,
   InvalidUrlError,
   ReadabilityError,
 } from './errors'
-
-export {
-  BaseBrowserProvider,
-} from './base'
-
-export {
-  BrowserRegistry,
-  getBrowserRegistry,
-  resetBrowserRegistry,
-} from './registry'
-
-export type { BrowserProviderConfig } from './factory'
+export { BaseBrowserProvider, type BaseProviderConfig } from './base'
+export { BrowserRegistry, getBrowserRegistry, resetBrowserRegistry } from './registry'
+export type { BrowserProviderConfig, ResolvedBrowserProviderConfig } from './factory'
 export {
   BrowserFactory,
+  DEFAULT_BROWSER_PROVIDER_CONFIG,
+  resolveBrowserProviderConfig,
+  validateBrowserProviderConfig,
   getBrowserFactory,
   resetBrowserFactory,
 } from './factory'
-
 export {
   BrowserSelector,
   BrowserSelectionStrategy,
@@ -61,25 +52,10 @@ export {
   getBrowserSelector,
   resetBrowserSelector,
 } from './selector'
-
 export { BrowserAgent } from './agent'
-
-export {
-  BrowserCache,
-  getBrowserCache,
-  resetBrowserCache,
-} from './cache'
-
-export {
-  chunkDocument,
-  mergeChunks,
-} from './chunking'
-
-export {
-  BrowserTelemetry,
-  browserTelemetry,
-} from './telemetry'
-
+export { BrowserCache, getBrowserCache, resetBrowserCache } from './cache'
+export { chunkDocument, mergeChunks } from './chunking'
+export { BrowserTelemetry, browserTelemetry } from './telemetry'
 export {
   generateBrowserId,
   generateBrowserRequestId,
@@ -94,16 +70,5 @@ export {
   cleanWhitespace,
   measureTime,
 } from './utils'
-
 export * from './providers'
-
-export {
-  DEFAULT_BROWSER_TIMEOUT_MS,
-  MAX_BROWSER_TIMEOUT_MS,
-  MAX_PAGE_SIZE_BYTES,
-  DEFAULT_CHUNK_SIZE,
-  DEFAULT_CHUNK_OVERLAP,
-  BROWSER_CACHE_TTL_MS,
-  MAX_CONCURRENT_BROWSER_REQUESTS,
-  SUPPORTED_CONTENT_TYPES,
-} from './constants'
+export * from './constants'

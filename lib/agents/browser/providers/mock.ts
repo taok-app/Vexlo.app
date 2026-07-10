@@ -1,67 +1,43 @@
-/**
- * Mock Browser Provider
- * 
- * Deterministic mock provider for testing.
- */
-
-import type { BrowserRequest, PageContent, BrowserCapabilities } from '../types'
+import type { BrowserCapabilities, BrowserRequest, RawBrowserDocument } from '../types'
 import { BrowserProvider, type BrowserHealthStatus } from '../provider'
-import { generateBrowserId } from '../utils'
+import { FetchError } from '../errors'
 
-/**
- * Mock browser provider
- */
 export class MockBrowserProvider extends BrowserProvider {
   readonly name = 'mock'
   readonly version = '1.0.0'
-  readonly description = 'Mock browser provider for testing'
+  readonly description = 'Deterministic raw browser provider for testing'
 
   private healthy = true
   private failureMode = false
-  private mockContent = 'Mock page content for testing'
+  private mockContent = '<!doctype html><html><body>Mock page content for testing</body></html>'
 
-  /**
-   * Set failure mode
-   */
   setFailureMode(enabled: boolean): void {
     this.failureMode = enabled
   }
 
-  /**
-   * Set mock content
-   */
   setMockContent(content: string): void {
     this.mockContent = content
   }
 
-  /**
-   * Set health status
-   */
   setHealthy(healthy: boolean): void {
     this.healthy = healthy
   }
 
-  async fetch(request: BrowserRequest): Promise<PageContent> {
-    // Simulate network delay
-    await new Promise((resolve) => setTimeout(resolve, 50))
-
-    if (this.failureMode) {
-      throw new Error('Mock browser failure')
-    }
-
+  async fetch(request: BrowserRequest): Promise<RawBrowserDocument> {
+    if (this.failureMode) throw new FetchError('Mock browser failure')
+    const responseSize = new TextEncoder().encode(this.mockContent).byteLength
     return {
-      title: 'Mock Page Title',
-      content: this.mockContent,
-      metadata: {
-        originalUrl: request.url,
-        canonicalUrl: request.url,
-        title: 'Mock Page Title',
-        description: 'Mock page description',
-        author: 'Mock Author',
-        publisher: 'Mock Publisher',
-      },
-      language: 'en',
-      readingTimeMinutes: 5,
+      requestUrl: request.url,
+      finalUrl: request.url,
+      statusCode: 200,
+      headers: { 'content-type': 'text/html; charset=utf-8' },
+      contentType: 'text/html',
+      charset: 'utf-8',
+      html: this.mockContent,
+      responseSize,
+      fetchedAt: new Date(),
+      provider: this.name,
+      duration: 0,
     }
   }
 
@@ -70,6 +46,12 @@ export class MockBrowserProvider extends BrowserProvider {
       healthy: this.healthy,
       message: this.healthy ? 'Mock browser is healthy' : 'Mock browser is unhealthy',
       authenticated: true,
+      status: this.healthy ? 'available' : 'unavailable',
+      configurationValid: true,
+      fetchCapable: this.healthy,
+      latencyMs: 0,
+      version: this.version,
+      available: this.healthy,
     }
   }
 
@@ -79,9 +61,9 @@ export class MockBrowserProvider extends BrowserProvider {
       supportedContentTypes: ['text/html'],
       supportsJavaScript: false,
       supportsCSS: false,
-      returnsMarkdown: true,
-      averageLatencyMs: 50,
-      reliability: 1.0,
+      returnsMarkdown: false,
+      averageLatencyMs: 0,
+      reliability: 1,
       requiresAuthentication: false,
     }
   }

@@ -1,125 +1,82 @@
-/**
- * Browser Agent Errors
- */
+import { BrowserError } from './types'
 
-import type { BrowserError } from './types'
-
-/**
- * Fetch error
- */
-export class FetchError extends Error implements BrowserError {
-  readonly code = 'FETCH_ERROR'
-  readonly retryable = true
-
-  constructor(message: string) {
-    super(message)
+export class FetchError extends BrowserError {
+  constructor(message: string, options?: ErrorOptions) {
+    super(message, 'FETCH_ERROR', true, options)
     this.name = 'FetchError'
   }
 }
 
-/**
- * HTTP error
- */
-export class HttpError extends Error implements BrowserError {
-  readonly code: string
-  readonly retryable: boolean
-
-  constructor(statusCode: number, message?: string) {
-    super(message || `HTTP ${statusCode}`)
-    this.name = 'HttpError'
-    this.code = `HTTP_${statusCode}`
-    // 5xx errors are retryable, 4xx generally are not
-    this.retryable = statusCode >= 500 || statusCode === 429
+export class TimeoutError extends BrowserError {
+  constructor(timeoutMs: number, options?: ErrorOptions) {
+    super(`Browser request timed out after ${timeoutMs}ms`, 'TIMEOUT', true, options)
+    this.name = 'TimeoutError'
   }
 }
 
-/**
- * Content extraction error
- */
-export class ExtractionError extends Error implements BrowserError {
-  readonly code = 'EXTRACTION_ERROR'
-  readonly retryable = false
-
-  constructor(message: string) {
-    super(message)
-    this.name = 'ExtractionError'
+export class ValidationError extends BrowserError {
+  constructor(message: string, options?: ErrorOptions) {
+    super(message, 'VALIDATION_ERROR', false, options)
+    this.name = 'ValidationError'
   }
 }
 
-/**
- * Content too large error
- */
-export class ContentTooLargeError extends Error implements BrowserError {
-  readonly code = 'CONTENT_TOO_LARGE'
-  readonly retryable = false
-
-  constructor(sizeBytes: number) {
-    super(`Content too large: ${sizeBytes} bytes`)
-    this.name = 'ContentTooLargeError'
+export class NetworkError extends BrowserError {
+  constructor(message: string, options?: ErrorOptions) {
+    super(message, 'NETWORK_ERROR', true, options)
+    this.name = 'NetworkError'
   }
 }
 
-/**
- * Unsupported content type error
- */
-export class UnsupportedContentError extends Error implements BrowserError {
-  readonly code = 'UNSUPPORTED_CONTENT'
-  readonly retryable = false
+export class ProviderUnavailableError extends BrowserError {
+  constructor(provider: string, options?: ErrorOptions) {
+    super(`Browser provider '${provider}' is unavailable`, 'PROVIDER_UNAVAILABLE', true, options)
+    this.name = 'ProviderUnavailableError'
+  }
+}
 
-  constructor(contentType: string) {
-    super(`Unsupported content type: ${contentType}`)
+export class UnsupportedContentError extends BrowserError {
+  constructor(contentType: string, options?: ErrorOptions) {
+    super(`Unsupported content type: ${contentType || 'unknown'}`, 'UNSUPPORTED_CONTENT', false, options)
     this.name = 'UnsupportedContentError'
   }
 }
 
-/**
- * Browser timeout error
- */
-export class BrowserTimeoutError extends Error implements BrowserError {
-  readonly code = 'BROWSER_TIMEOUT'
-  readonly retryable = true
+export class HttpError extends BrowserError {
+  readonly statusCode: number
 
-  constructor(timeoutMs: number) {
-    super(`Browser operation timed out after ${timeoutMs}ms`)
-    this.name = 'BrowserTimeoutError'
+  constructor(statusCode: number, message?: string, options?: ErrorOptions) {
+    super(message ?? `HTTP ${statusCode}`, `HTTP_${statusCode}`, statusCode === 408 || statusCode === 429 || statusCode >= 500, options)
+    this.name = 'HttpError'
+    this.statusCode = statusCode
   }
 }
 
-/**
- * Browser provider unavailable error
- */
-export class BrowserProviderUnavailableError extends Error implements BrowserError {
-  readonly code = 'PROVIDER_UNAVAILABLE'
-  readonly retryable = true
-
-  constructor(provider: string) {
-    super(`Browser provider '${provider}' is unavailable`)
-    this.name = 'BrowserProviderUnavailableError'
+export class ContentTooLargeError extends ValidationError {
+  constructor(sizeBytes: number, maximumBytes?: number) {
+    super(
+      maximumBytes === undefined
+        ? `Content too large: ${sizeBytes} bytes`
+        : `Content too large: ${sizeBytes} bytes exceeds ${maximumBytes} bytes`,
+    )
+    this.name = 'ContentTooLargeError'
   }
 }
 
-/**
- * Invalid URL error
- */
-export class InvalidUrlError extends Error implements BrowserError {
-  readonly code = 'INVALID_URL'
-  readonly retryable = false
-
-  constructor(url: string) {
-    super(`Invalid URL: ${url}`)
-    this.name = 'InvalidUrlError'
-  }
-}
-
-/**
- * Readability error
- */
-export class ReadabilityError extends Error implements BrowserError {
-  readonly code = 'READABILITY_ERROR'
-  readonly retryable = false
-
+export class ExtractionError extends BrowserError {
   constructor(message: string) {
-    super(message)
+    super(message, 'EXTRACTION_ERROR')
+    this.name = 'ExtractionError'
+  }
+}
+
+export class ReadabilityError extends BrowserError {
+  constructor(message: string) {
+    super(message, 'READABILITY_ERROR')
     this.name = 'ReadabilityError'
   }
 }
+
+export { TimeoutError as BrowserTimeoutError }
+export { ProviderUnavailableError as BrowserProviderUnavailableError }
+export { ValidationError as InvalidUrlError }
