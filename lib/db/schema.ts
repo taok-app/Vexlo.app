@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, integer, jsonb, boolean, uniqueIndex } from 'drizzle-orm/pg-core'
+import { pgTable, text, timestamp, integer, jsonb, boolean, uniqueIndex, real, index } from 'drizzle-orm/pg-core'
 import { z } from 'zod'
 
 // Log entry types
@@ -523,3 +523,128 @@ export type ResearchSession = z.infer<typeof selectResearchSessionSchema>
 export type ResearchSource = z.infer<typeof selectResearchSourceSchema>
 export type ResearchFollowup = z.infer<typeof selectResearchFollowupSchema>
 export type InsertResearchSession = z.infer<typeof insertResearchSessionSchema>
+
+// ---------------------------------------------------------------------------
+// Knowledge Layer tables
+// ---------------------------------------------------------------------------
+
+export const documents = pgTable(
+  'documents',
+  {
+    id: text('id').primaryKey(),
+    organizationId: text('organization_id'),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    title: text('title').notNull(),
+    mimeType: text('mime_type').notNull(), // e.g., 'application/pdf', 'text/plain'
+    fileSize: integer('file_size').notNull(), // in bytes
+    url: text('url'), // optional storage URL
+    metadata: jsonb('metadata').$type<Record<string, unknown>>(),
+    status: text('status', {
+      enum: ['uploaded', 'processing', 'processed', 'error'],
+    })
+      .notNull()
+      .default('uploaded'),
+    error: text('error'), // error message if processing failed
+    chunkCount: integer('chunk_count').default(0),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  },
+  (table) => ({
+    userIdIdx: index('documents_user_id_idx').on(table.userId),
+    orgIdIdx: index('documents_organization_id_idx').on(table.organizationId),
+    statusIdx: index('documents_status_idx').on(table.status),
+  }),
+)
+
+export const insertDocumentSchema = z.object({
+  id: z.string().optional(),
+  organizationId: z.string().optional(),
+  userId: z.string().min(1, 'User ID is required'),
+  title: z.string().min(1, 'Title is required'),
+  mimeType: z.string().min(1, 'MIME type is required'),
+  fileSize: z.number().min(0, 'File size must be non-negative'),
+  url: z.string().url().optional(),
+  metadata: z.record(z.unknown()).optional(),
+  status: z.enum(['uploaded', 'processing', 'processed', 'error']).default('uploaded'),
+  error: z.string().optional(),
+  chunkCount: z.number().default(0),
+  createdAt: z.date().optional(),
+  updatedAt: z.date().optional(),
+})
+
+export const selectDocumentSchema = z.object({
+  id: z.string(),
+  organizationId: z.string().nullable(),
+  userId: z.string(),
+  title: z.string(),
+  mimeType: z.string(),
+  fileSize: z.number(),
+  url: z.string().nullable(),
+  metadata: z.record(z.unknown()).nullable(),
+  status: z.enum(['uploaded', 'processing', 'processed', 'error']),
+  error: z.string().nullable(),
+  chunkCount: z.number().nullable(),
+  createdAt: z.date(),
+  updatedAt: z.date(),
+})
+
+export type Document = z.infer<typeof selectDocumentSchema>
+export type InsertDocument = z.infer<typeof insertDocumentSchema>
+
+// Document chunks - semantic chunks of documents with embeddings
+export const documentChunks = pgTable(
+  'document_chunks',
+  {
+    id: text('id').primaryKey(),
+    documentId: text('document_id')
+      .notNull()
+      .references(() => documents.id, { onDelete: 'cascade' }),
+    organizationId: text('organization_id'),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    chunkIndex: integer('chunk_index').notNull(),
+    content: text('content').notNull(),
+    tokens: integer('tokens').default(0),
+    embedding: text('embedding'), // JSON string of float array for pgvector compatibility
+    metadata: jsonb('metadata').$type<Record<string, unknown>>(),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+  },
+  (table) => ({
+    documentIdIdx: index('document_chunks_document_id_idx').on(table.documentId),
+    userIdIdx: index('document_chunks_user_id_idx').on(table.userId),
+    orgIdIdx: index('document_chunks_organization_id_idx').on(table.organizationId),
+    chunkIndexIdx: index('document_chunks_chunk_index_idx').on(table.documentId, table.chunkIndex),
+  }),
+)
+
+export const insertDocumentChunkSchema = z.object({
+  id: z.string().optional(),
+  documentId: z.string().min(1, 'Document ID is required'),
+  organizationId: z.string().optional(),
+  userId: z.string().min(1, 'User ID is required'),
+  chunkIndex: z.number().int().min(0),
+  content: z.string().min(1, 'Content is required'),
+  tokens: z.number().int().min(0).default(0),
+  embedding: z.string().optional(), // JSON string
+  metadata: z.record(z.unknown()).optional(),
+  createdAt: z.date().optional(),
+})
+
+export const selectDocumentChunkSchema = z.object({
+  id: z.string(),
+  documentId: z.string(),
+  organizationId: z.string().nullable(),
+  userId: z.string(),
+  chunkIndex: z.number(),
+  content: z.string(),
+  tokens: z.number().nullable(),
+  embedding: z.string().nullable(),
+  metadata: z.record(z.unknown()).nullable(),
+  createdAt: z.date(),
+})
+
+export type DocumentChunk = z.infer<typeof selectDocumentChunkSchema>
+export type InsertDocumentChunk = z.infer<typeof insertDocumentChunkSchema>
