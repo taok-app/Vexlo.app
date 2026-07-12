@@ -18,7 +18,8 @@ export function validateUrl(value: string): BrowserValidationResult {
 export function validateSearchTask(task: SearchTask): BrowserValidationResult {
   const errors: BrowserValidationResult['errors'] = []
   if (!task.id.trim()) errors.push({ code: 'MISSING_TASK_ID', message: 'Search task ID is required', field: 'id' })
-  if (!task.query.trim()) errors.push({ code: 'MISSING_QUERY', message: 'Search task query is required', field: 'query' })
+  if (!task.query.trim())
+    errors.push({ code: 'MISSING_QUERY', message: 'Search task query is required', field: 'query' })
   return { valid: errors.length === 0, errors, warnings: [] }
 }
 
@@ -28,10 +29,18 @@ export function validateRawDocument(
 ): BrowserValidationResult {
   const errors: BrowserValidationResult['errors'] = []
   if (document.responseSize > maximumBytes) {
-    errors.push({ code: 'OVERSIZED_RESPONSE', message: `Response exceeds ${maximumBytes} bytes`, field: 'responseSize' })
+    errors.push({
+      code: 'OVERSIZED_RESPONSE',
+      message: `Response exceeds ${maximumBytes} bytes`,
+      field: 'responseSize',
+    })
   }
   if (!SUPPORTED_CONTENT_TYPES.includes(document.contentType as (typeof SUPPORTED_CONTENT_TYPES)[number])) {
-    errors.push({ code: 'UNSUPPORTED_CONTENT', message: `Unsupported content type: ${document.contentType}`, field: 'contentType' })
+    errors.push({
+      code: 'UNSUPPORTED_CONTENT',
+      message: `Unsupported content type: ${document.contentType}`,
+      field: 'contentType',
+    })
   }
   if (!document.html.trim()) errors.push({ code: 'EMPTY_RESPONSE', message: 'Response body is empty', field: 'html' })
   return { valid: errors.length === 0, errors, warnings: [] }

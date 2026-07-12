@@ -80,10 +80,7 @@ export class ResearchBrowserAgent {
     return { results, sources, metadata }
   }
 
-  private async executeTask(
-    task: SearchTask,
-    options: Required<BrowserAgentOptions>,
-  ): Promise<BrowserTaskResult> {
+  private async executeTask(task: SearchTask, options: Required<BrowserAgentOptions>): Promise<BrowserTaskResult> {
     const startedAt = performance.now()
     const validation = validateSearchTask(task)
     if (!validation.valid) {
@@ -139,7 +136,11 @@ export class ResearchBrowserAgent {
   ): Promise<RetrievedSource | BrowserAgentErrorInfo> {
     const normalizedUrl = normalizeSourceUrl(result.url)
     if (!normalizedUrl || !validateUrl(normalizedUrl).valid) {
-      return toErrorInfo(new ResearchBrowserError(BrowserAgentErrorCode.INVALID_URL, 'Search result URL is invalid'), task.id, result.url)
+      return toErrorInfo(
+        new ResearchBrowserError(BrowserAgentErrorCode.INVALID_URL, 'Search result URL is invalid'),
+        task.id,
+        result.url,
+      )
     }
     const cached = this.dependencies.cache.get(normalizedUrl)
     if (cached) {
@@ -247,11 +248,12 @@ function toErrorInfo(error: unknown, taskId?: string, url?: string): BrowserAgen
   const value = error instanceof Error ? error : new Error('Unknown browser failure')
   const code = 'code' in value && typeof value.code === 'string' ? value.code : ''
   return {
-    code: code === 'UNSUPPORTED_CONTENT'
-      ? BrowserAgentErrorCode.UNSUPPORTED_CONTENT
-      : code === 'VALIDATION_ERROR'
-        ? BrowserAgentErrorCode.INVALID_URL
-        : BrowserAgentErrorCode.FETCH_FAILED,
+    code:
+      code === 'UNSUPPORTED_CONTENT'
+        ? BrowserAgentErrorCode.UNSUPPORTED_CONTENT
+        : code === 'VALIDATION_ERROR'
+          ? BrowserAgentErrorCode.INVALID_URL
+          : BrowserAgentErrorCode.FETCH_FAILED,
     message: value.message || 'Source retrieval failed',
     retryable: 'retryable' in value && value.retryable === true,
     taskId,

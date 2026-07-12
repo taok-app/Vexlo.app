@@ -74,7 +74,7 @@ describe('research Browser Agent', () => {
   it('extracts clean semantic content and metadata', () => {
     const page = extractPage(document(articleHtml))
     expect(page.title).toBe('Research title')
-    expect(page.content).toContain('##')
+    expect(page.content).toContain('# Research title')
     expect(page.content).not.toContain('Navigation')
     expect(page.author).toBe('Ada Lovelace')
     expect(page.canonicalUrl).toBe('https://example.gov/canonical')
@@ -159,13 +159,26 @@ describe('research Browser Agent', () => {
     const agent = new ResearchBrowserAgent({
       search: {
         search: async () => ({
-          results: [{
-            id: 'bad', title: 'Bad', url: 'https://example.com', snippet: '', provider: 'test',
-            domain: 'example.com', providerScore: 0.5, rankingScore: 0.5, metadata: {},
-          }],
+          results: [
+            {
+              id: 'bad',
+              title: 'Bad',
+              url: 'https://example.com',
+              snippet: '',
+              provider: 'test',
+              domain: 'example.com',
+              providerScore: 0.5,
+              rankingScore: 0.5,
+              metadata: {},
+            },
+          ],
         }),
       },
-      fetcher: { fetch: async () => { throw new Error('DNS lookup failed') } },
+      fetcher: {
+        fetch: async () => {
+          throw new Error('DNS lookup failed')
+        },
+      },
       robots: { isAllowed: async () => true },
     })
     const result = await agent.execute([task])
@@ -174,5 +187,3 @@ describe('research Browser Agent', () => {
     expect(JSON.stringify(result)).not.toContain('at ')
   })
 })
-
-void (undefined as unknown as RetrievedSource)

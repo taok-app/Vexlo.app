@@ -78,7 +78,8 @@ export function extractPage(document: RawBrowserDocument): ExtractedPage {
     if (key && value && key.length <= 100 && value.length <= 2_000) metadata[key] = value
   })
   const normalizedMetadata = normalizeMetadata(metadata)
-  const root = CONTENT_SELECTORS.map((selector) => $(selector).first()).find((candidate) => candidate.length > 0) ?? $('body')
+  const root =
+    CONTENT_SELECTORS.map((selector) => $(selector).first()).find((candidate) => candidate.length > 0) ?? $('body')
   let content = serializeContent($, root)
   if (content.length < 100) content = normalizeContent(root.text())
 
@@ -113,19 +114,26 @@ function clamp(value: number): number {
   return Math.max(0, Math.min(1, value))
 }
 
-export function scoreSourceQuality(
-  page: ExtractedPage,
-  url: string,
-  fetchedAt = new Date(),
-): SourceQuality {
+export function scoreSourceQuality(page: ExtractedPage, url: string, fetchedAt = new Date()): SourceQuality {
   const contentLength = page.content.length
-  const completeness = clamp(contentLength / 4_000) * 0.65 + (page.title ? 0.15 : 0) + (page.headings.length ? 0.1 : 0) + (page.author ? 0.1 : 0)
+  const completeness =
+    clamp(contentLength / 4_000) * 0.65 +
+    (page.title ? 0.15 : 0) +
+    (page.headings.length ? 0.1 : 0) +
+    (page.author ? 0.1 : 0)
   const date = page.modifiedAt ?? page.publishedAt
   const ageDays = date ? Math.max(0, (fetchedAt.getTime() - date.getTime()) / 86_400_000) : undefined
   const freshness = ageDays === undefined ? 0.5 : clamp(1 - ageDays / (365 * 5))
   const hostname = new URL(url).hostname.toLocaleLowerCase()
-  const authority = hostname.endsWith('.gov') || hostname.endsWith('.edu') ? 0.95 : hostname.endsWith('.org') ? 0.75 : 0.6
-  const extractionConfidence = clamp(0.35 + (contentLength >= 500 ? 0.25 : 0) + (page.title ? 0.15 : 0) + (page.canonicalUrl ? 0.1 : 0) + (page.headings.length ? 0.15 : 0))
+  const authority =
+    hostname.endsWith('.gov') || hostname.endsWith('.edu') ? 0.95 : hostname.endsWith('.org') ? 0.75 : 0.6
+  const extractionConfidence = clamp(
+    0.35 +
+      (contentLength >= 500 ? 0.25 : 0) +
+      (page.title ? 0.15 : 0) +
+      (page.canonicalUrl ? 0.1 : 0) +
+      (page.headings.length ? 0.15 : 0),
+  )
   const overall = completeness * 0.3 + freshness * 0.2 + authority * 0.25 + extractionConfidence * 0.25
   return {
     completeness: clamp(completeness),
