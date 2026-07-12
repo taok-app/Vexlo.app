@@ -1,1 +1,156 @@
-/**\n * Planner Agent Prompts\n *\n * Reusable prompt templates for the Planner Agent.\n * Separated from implementation to keep prompts maintainable and testable.\n */\n\n/**\n * System prompt for query analysis\n */\nexport const ANALYZE_QUERY_SYSTEM_PROMPT = `You are an expert query analyzer. Your job is to understand what the user is really asking for.\n\nAnalyze the user's query and determine:\n1. What is the user's intent? (informational, explanatory, analytical, instructional, creative, or decision support)\n2. What are the main topics/entities being discussed?\n3. What key concepts are involved?\n4. How complex is this query? (1=trivial, 5=very complex)\n5. Is the query clear and actionable?\n\nRespond in JSON format with fields: intent, mainTopic, entities, concepts, complexity, isActionable`\n\n/**\n * Prompt for generating execution plan\n */\nexport const GENERATE_PLAN_SYSTEM_PROMPT = `You are an expert execution planner for AI research and analysis tasks.\n\nGiven a user query and intent analysis, produce a detailed execution plan that includes:\n1. A clear objective statement\n2. Decomposed tasks with dependencies\n3. Search queries needed\n4. Required tools\n5. Expected outputs\n6. Optimal reasoning strategy\n7. Confidence score for the plan\n\nOptimize for:\n- Minimal unnecessary steps\n- Maximizing parallelism where safe\n- Clear data flow between tasks\n- Maximum success probability\n\nRespond in JSON format matching the ExecutionPlan interface.`\n\n/**\n * Prompt for intent classification\n */\nexport const CLASSIFY_INTENT_PROMPT = `Classify the following query into one of these categories:\n- INFORMATIONAL: User wants facts or information\n- EXPLANATORY: User wants to understand how or why something works\n- ANALYTICAL: User wants analysis, comparison, or evaluation\n- INSTRUCTIONAL: User wants step-by-step guidance or instructions\n- CREATIVE: User wants ideas, suggestions, or creative content\n- DECISION_SUPPORT: User wants help deciding between options\n\nQuery: \"{query}\"\n\nRespond with only the category name.`\n\n/**\n * Prompt for task decomposition\n */\nexport const DECOMPOSE_TASKS_PROMPT = `Break down this objective into concrete, measurable tasks:\n\nObjective: \"{objective}\"\nIntent: {intent}\n\nFor each task, specify:\n- What needs to be done\n- Why it's needed\n- What it depends on (if anything)\n- What output it produces\n- Priority level\n\nTasks should be:\n- Specific and actionable\n- Appropriately granular\n- Clearly dependent or independent\n- Ordered for optimal execution\n\nRespond as a JSON array of tasks.`\n\n/**\n * Prompt for search query generation\n */\nexport const GENERATE_SEARCH_QUERIES_PROMPT = `Generate search queries for these research tasks:\n\nObjective: \"{objective}\"\nTasks:\n{tasks}\n\nFor each task that needs external information, generate 1-3 search queries that would retrieve relevant results.\n\nSearch queries should be:\n- Specific and focused\n- Use proper search syntax when helpful\n- Designed to find authoritative sources\n- Complementary (cover different angles)\n\nRespond as a JSON array with fields: taskId, query, rationale.`\n\n/**\n * Prompt for tool selection\n */\nexport const SELECT_TOOLS_PROMPT = `Given this plan, what tools are needed to execute it?\n\nPlan objective: \"{objective}\"\nTasks: {tasks}\nSearch queries: {searchQueryCount}\n\nDecide which of these tools are required:\n- Search (yes/no): Are external searches needed?\n- Browser (yes/no): Is webpage retrieval needed?\n- Reasoning (yes/no): Is complex reasoning needed?\n- Critique (yes/no): Is verification/critique needed?\n\nRespond as JSON with boolean fields.`\n\n/**\n * Prompt for reasoning strategy selection\n */\nexport const SELECT_STRATEGY_PROMPT = `Given these tasks, what execution strategy is best?\n\nTasks: {tasks}\n\nOptions:\n- LINEAR: Execute one after another in order\n- PARALLEL: Execute independent tasks simultaneously\n- TREE: Branch and explore alternatives\n- ADAPTIVE: Adjust strategy based on results\n\nConsider:\n- Task dependencies\n- Resource constraints\n- Time sensitivity\n- Uncertainty in results\n\nRespond with the strategy name.`\n\n/**\n * Prompt for confidence scoring\n */\nexport const SCORE_CONFIDENCE_PROMPT = `Rate your confidence in this plan:\n\nObjective: \"{objective}\"\nTasks: {taskCount} tasks\nSearches: {searchCount} searches\nStrategy: {strategy}\n\nFactors to consider:\n- How clear is the objective?\n- Are tasks well-defined and achievable?\n- Are search queries likely to find relevant info?\n- Are there uncertainties or gaps?\n- Is the strategy well-suited to the objective?\n\nProvide a confidence score from 0.0 to 1.0.`\n"
+/**
+ * Planner Agent Prompts
+ *
+ * Reusable prompt templates for the Planner Agent.
+ * Separated from implementation to keep prompts maintainable and testable.
+ */
+
+/**
+ * System prompt for query analysis
+ */
+export const ANALYZE_QUERY_SYSTEM_PROMPT = `You are an expert query analyzer. Your job is to understand what the user is really asking for.
+
+Analyze the user's query and determine:
+1. What is the user's intent? (informational, explanatory, analytical, instructional, creative, or decision support)
+2. What are the main topics/entities being discussed?
+3. What key concepts are involved?
+4. How complex is this query? (1=trivial, 5=very complex)
+5. Is the query clear and actionable?
+
+Respond in JSON format with fields: intent, mainTopic, entities, concepts, complexity, isActionable`
+
+/**
+ * Prompt for generating execution plan
+ */
+export const GENERATE_PLAN_SYSTEM_PROMPT = `You are an expert execution planner for AI research and analysis tasks.
+
+Given a user query and intent analysis, produce a detailed execution plan that includes:
+1. A clear objective statement
+2. Decomposed tasks with dependencies
+3. Search queries needed
+4. Required tools
+5. Expected outputs
+6. Optimal reasoning strategy
+7. Confidence score for the plan
+
+Optimize for:
+- Minimal unnecessary steps
+- Maximizing parallelism where safe
+- Clear data flow between tasks
+- Maximum success probability
+
+Respond in JSON format matching the ExecutionPlan interface.`
+
+/**
+ * Prompt for intent classification
+ */
+export const CLASSIFY_INTENT_PROMPT = `Classify the following query into one of these categories:
+- INFORMATIONAL: User wants facts or information
+- EXPLANATORY: User wants to understand how or why something works
+- ANALYTICAL: User wants analysis, comparison, or evaluation
+- INSTRUCTIONAL: User wants step-by-step guidance or instructions
+- CREATIVE: User wants ideas, suggestions, or creative content
+- DECISION_SUPPORT: User wants help deciding between options
+
+Query: \"{query}\"
+
+Respond with only the category name.`
+
+/**
+ * Prompt for task decomposition
+ */
+export const DECOMPOSE_TASKS_PROMPT = `Break down this objective into concrete, measurable tasks:
+
+Objective: \"{objective}\"
+Intent: {intent}
+
+For each task, specify:
+- What needs to be done
+- Why it's needed
+- What it depends on (if anything)
+- What output it produces
+- Priority level
+
+Tasks should be:
+- Specific and actionable
+- Appropriately granular
+- Clearly dependent or independent
+- Ordered for optimal execution
+
+Respond as a JSON array of tasks.`
+
+/**
+ * Prompt for search query generation
+ */
+export const GENERATE_SEARCH_QUERIES_PROMPT = `Generate search queries for these research tasks:
+
+Objective: \"{objective}\"
+Tasks:
+{tasks}
+
+For each task that needs external information, generate 1-3 search queries that would retrieve relevant results.
+
+Search queries should be:
+- Specific and focused
+- Use proper search syntax when helpful
+- Designed to find authoritative sources
+- Complementary (cover different angles)
+
+Respond as a JSON array with fields: taskId, query, rationale.`
+
+/**
+ * Prompt for tool selection
+ */
+export const SELECT_TOOLS_PROMPT = `Given this plan, what tools are needed to execute it?
+
+Plan objective: \"{objective}\"
+Tasks: {tasks}
+Search queries: {searchQueryCount}
+
+Decide which of these tools are required:
+- Search (yes/no): Are external searches needed?
+- Browser (yes/no): Is webpage retrieval needed?
+- Reasoning (yes/no): Is complex reasoning needed?
+- Critique (yes/no): Is verification/critique needed?
+
+Respond as JSON with boolean fields.`
+
+/**
+ * Prompt for reasoning strategy selection
+ */
+export const SELECT_STRATEGY_PROMPT = `Given these tasks, what execution strategy is best?
+
+Tasks: {tasks}
+
+Options:
+- LINEAR: Execute one after another in order
+- PARALLEL: Execute independent tasks simultaneously
+- TREE: Branch and explore alternatives
+- ADAPTIVE: Adjust strategy based on results
+
+Consider:
+- Task dependencies
+- Resource constraints
+- Time sensitivity
+- Uncertainty in results
+
+Respond with the strategy name.`
+
+/**
+ * Prompt for confidence scoring
+ */
+export const SCORE_CONFIDENCE_PROMPT = `Rate your confidence in this plan:
+
+Objective: \"{objective}\"
+Tasks: {taskCount} tasks
+Searches: {searchCount} searches
+Strategy: {strategy}
+
+Factors to consider:
+- How clear is the objective?
+- Are tasks well-defined and achievable?
+- Are search queries likely to find relevant info?
+- Are there uncertainties or gaps?
+- Is the strategy well-suited to the objective?
+
+Provide a confidence score from 0.0 to 1.0.`

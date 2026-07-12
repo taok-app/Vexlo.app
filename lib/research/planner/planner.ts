@@ -1,1 +1,436 @@
-/**\n * Planner Agent\n *\n * Takes a user query and produces a detailed execution plan.\n * Handles query analysis, intent detection, task decomposition,\n * and confidence estimation.\n */\n\nimport { generateText } from 'ai'\nimport { nanoid } from 'nanoid'\nimport { createLogger } from '@/lib/logging'\nimport type {\n  ExecutionPlan,\n  PlannerInput,\n  QueryAnalysis,\n  IntentType,\n  TaskType,\n  ReasoningStrategy,\n  ConfidenceScore,\n  PlanTask,\n  GeneratedSearchQuery,\n} from './types'\nimport { IntentType as IntentEnum, ReasoningStrategy as ReasoningStrategyEnum, createConfidenceScore } from './types'\nimport { validateExecutionPlan } from './validator'\nimport * as prompts from './prompts'\n\nconst logger = createLogger('research:planner')\n\nconst DEFAULT_MODEL = 'openai/gpt-4o-mini'\n\n/**\n * Planner Agent class\n */\nexport class PlannerAgent {\n  private model: string\n\n  constructor(model: string = DEFAULT_MODEL) {\n    this.model = model\n  }\n\n  /**\n   * Create an execution plan for a user query\n   */\n  async plan(input: PlannerInput): Promise<ExecutionPlan> {\n    const startTime = performance.now()\n    const planId = nanoid()\n\n    logger.info('Planning query')\n\n    try {\n      // Step 1: Analyze the query\n      const analysis = await this.analyzeQuery(input.query)\n      logger.info('Query analyzed')\n\n      // Step 2: Decompose into tasks\n      const tasks = await this.decomposeTasks(input.query, analysis)\n      logger.info('Tasks decomposed')\n\n      // Step 3: Generate search queries\n      const searchQueries = await this.generateSearchQueries(input.query, tasks)\n      logger.info('Search queries generated')\n\n      // Step 4: Select required tools\n      const requiredTools = await this.selectTools(input.query, tasks, searchQueries)\n      logger.info('Tools selected')\n\n      // Step 5: Select reasoning strategy\n      const strategy = await this.selectStrategy(tasks)\n      logger.info('Strategy selected')\n\n      // Step 6: Calculate confidence\n      const confidence = await this.scoreConfidence(input.query, tasks, searchQueries, strategy)\n      logger.info('Confidence scored')\n\n      // Step 7: Build plan\n      const plan: ExecutionPlan = {\n        id: planId,\n        query: input.query,\n        intent: analysis.intent,\n        objective: await this.generateObjective(input.query, analysis),\n        tasks,\n        searchQueries,\n        requiredTools,\n        expectedOutputs: await this.generateExpectedOutputs(input.query, analysis, tasks),\n        reasoningStrategy: strategy,\n        confidence,\n        reasoning: await this.generateReasoning(input.query, tasks, strategy, confidence),\n        estimatedTotalTokens: this.estimateTotalTokens(tasks, searchQueries),\n        createdAt: new Date(),\n      }\n\n      // Step 8: Validate plan\n      const validation = validateExecutionPlan(plan)\n      if (!validation.valid) {\n        const errorMessages = validation.errors.map((e) => `${e.code}: ${e.message}`).join('; ')\n        throw new Error(`Plan validation failed: ${errorMessages}`)\n      }\n\n      const durationMs = performance.now() - startTime\n      logger.info('Plan created successfully')\n\n      return plan\n    } catch (error) {\n      const err = error instanceof Error ? error : new Error(String(error))\n      logger.error('Planning failed', { error: err.message })\n      throw err\n    }\n  }\n\n  /**\n   * Analyze the user query to understand intent and content\n   */\n  private async analyzeQuery(query: string): Promise<QueryAnalysis> {\n    try {\n      const response = await generateText({\n        model: this.model,\n        system: prompts.ANALYZE_QUERY_SYSTEM_PROMPT,\n        prompt: query,\n        temperature: 0.3,\n      })\n\n      const parsed = JSON.parse(response.text)\n\n      return {\n        intent: this.normalizeIntent(parsed.intent),\n        mainTopic: parsed.mainTopic || 'unspecified',\n        entities: Array.isArray(parsed.entities) ? parsed.entities : [],\n        concepts: Array.isArray(parsed.concepts) ? parsed.concepts : [],\n        complexity: Math.max(1, Math.min(5, parseInt(parsed.complexity) || 2)),\n        isActionable: parsed.isActionable !== false,\n      }\n    } catch (error) {\n      logger.warn('Query analysis failed, using defaults', { error })\n      return {\n        intent: IntentEnum.INFORMATIONAL,\n        mainTopic: 'unspecified',\n        entities: [],\n        concepts: [],\n        complexity: 2,\n        isActionable: true,\n      }\n    }\n  }\n\n  /**\n   * Decompose query into actionable tasks\n   */\n  private async decomposeTasks(query: string, analysis: QueryAnalysis): Promise<PlanTask[]> {\n    try {\n      const objective = `Address query about ${analysis.mainTopic}`\n      const intentStr = Object.keys(IntentEnum).find((k) => IntentEnum[k as keyof typeof IntentEnum] === analysis.intent) || 'INFORMATIONAL'\n\n      const prompt = prompts.DECOMPOSE_TASKS_PROMPT.replace('{objective}', objective).replace('{intent}', intentStr)\n\n      const response = await generateText({\n        model: this.model,\n        prompt,\n        temperature: 0.5,\n      })\n\n      const parsed = JSON.parse(response.text)\n      if (!Array.isArray(parsed)) return this.getDefaultTasks(analysis)\n\n      return parsed.map((task: Record<string, unknown>, idx: number) => ({\n        id: `task_${idx}_${nanoid(8)}`,\n        type: this.normalizeTaskType(task.type as string),\n        description: String(task.description || ''),\n        priority: this.normalizePriority(task.priority as string),\n        dependsOn: Array.isArray(task.dependsOn) ? task.dependsOn : [],\n        expectedOutput: String(task.expectedOutput || ''),\n      }))\n    } catch (error) {\n      logger.warn('Task decomposition failed, using defaults', { error })\n      return this.getDefaultTasks(analysis)\n    }\n  }\n\n  /**\n   * Generate search queries for research tasks\n   */\n  private async generateSearchQueries(query: string, tasks: PlanTask[]): Promise<GeneratedSearchQuery[]> {\n    try {\n      const taskSummary = tasks.map((t) => `- ${t.id}: ${t.description}`).join('\\n')\n\n      const prompt = prompts.GENERATE_SEARCH_QUERIES_PROMPT.replace('{objective}', query).replace('{tasks}', taskSummary)\n\n      const response = await generateText({\n        model: this.model,\n        prompt,\n        temperature: 0.5,\n      })\n\n      const parsed = JSON.parse(response.text)\n      if (!Array.isArray(parsed)) return []\n\n      return parsed.map((sq: Record<string, unknown>) => ({\n        id: `search_${nanoid(8)}`,\n        query: {\n          query: String(sq.query || ''),\n          limit: 10,\n        },\n        rationale: String(sq.rationale || ''),\n        supportsTask: String(sq.taskId || tasks[0]?.id || ''),\n        priority: this.normalizePriority(sq.priority as string),\n      }))\n    } catch (error) {\n      logger.warn('Search query generation failed', { error })\n      return []\n    }\n  }\n\n  /**\n   * Select required tools\n   */\n  private async selectTools(\n    query: string,\n    tasks: PlanTask[],\n    searchQueries: GeneratedSearchQuery[],\n  ): Promise<Record<string, unknown>> {\n    try {\n      const taskSummary = tasks.map((t) => t.type).join(', ')\n      const prompt = prompts.SELECT_TOOLS_PROMPT\n        .replace('{objective}', query)\n        .replace('{tasks}', taskSummary)\n        .replace('{searchQueryCount}', String(searchQueries.length))\n\n      const response = await generateText({\n        model: this.model,\n        prompt,\n        temperature: 0.3,\n      })\n\n      const parsed = JSON.parse(response.text)\n\n      return {\n        searchProviders: parsed.search ? ['tavily', 'exa'] : [],\n        browserNeeded: parsed.browser === true,\n        reasoningNeeded: parsed.reasoning === true,\n        critiqueNeeded: parsed.critique === true,\n      }\n    } catch (error) {\n      logger.warn('Tool selection failed, using defaults', { error })\n      return {\n        searchProviders: searchQueries.length > 0 ? ['tavily'] : [],\n        browserNeeded: false,\n        reasoningNeeded: true,\n        critiqueNeeded: false,\n      }\n    }\n  }\n\n  /**\n   * Select execution strategy\n   */\n  private async selectStrategy(tasks: PlanTask[]): Promise<ReasoningStrategy> {\n    try {\n      const taskSummary = tasks.map((t) => `${t.id} (depends on: ${t.dependsOn.join(', ') || 'none'})`).join('; ')\n\n      const prompt = prompts.SELECT_STRATEGY_PROMPT.replace('{tasks}', taskSummary)\n\n      const response = await generateText({\n        model: this.model,\n        prompt,\n        temperature: 0.3,\n      })\n\n      const strategy = response.text.toUpperCase().trim()\n\n      if (Object.values(ReasoningStrategyEnum).includes(strategy as ReasoningStrategy)) {\n        return strategy as ReasoningStrategy\n      }\n\n      return ReasoningStrategyEnum.ADAPTIVE\n    } catch (error) {\n      logger.warn('Strategy selection failed, using ADAPTIVE', { error })\n      return ReasoningStrategyEnum.ADAPTIVE\n    }\n  }\n\n  /**\n   * Score confidence in the plan\n   */\n  private async scoreConfidence(\n    query: string,\n    tasks: PlanTask[],\n    searchQueries: GeneratedSearchQuery[],\n    strategy: ReasoningStrategy,\n  ): Promise<ConfidenceScore> {\n    try {\n      const prompt = prompts.SCORE_CONFIDENCE_PROMPT\n        .replace('{objective}', query)\n        .replace('{taskCount}', String(tasks.length))\n        .replace('{searchCount}', String(searchQueries.length))\n        .replace('{strategy}', strategy)\n\n      const response = await generateText({\n        model: this.model,\n        prompt,\n        temperature: 0.2,\n      })\n\n      const scoreStr = response.text.trim()\n      const score = parseFloat(scoreStr) || 0.7\n\n      return createConfidenceScore(score)\n    } catch (error) {\n      logger.warn('Confidence scoring failed, using default', { error })\n      return createConfidenceScore(0.6)\n    }\n  }\n\n  /**\n   * Generate objective statement\n   */\n  private async generateObjective(query: string, analysis: QueryAnalysis): Promise<string> {\n    return `Address query about \"${analysis.mainTopic}\": ${query.substring(0, 100)}${query.length > 100 ? '...' : ''}`\n  }\n\n  /**\n   * Generate expected outputs\n   */\n  private async generateExpectedOutputs(query: string, analysis: QueryAnalysis, tasks: PlanTask[]): Promise<string[]> {\n    return [\n      `Comprehensive answer to: \"${query.substring(0, 80)}...\"`,\n      `${tasks.length} research tasks completed`,\n      'Key findings synthesized',\n      'Sources cited',\n    ]\n  }\n\n  /**\n   * Generate reasoning explanation\n   */\n  private async generateReasoning(\n    query: string,\n    tasks: PlanTask[],\n    strategy: ReasoningStrategy,\n    confidence: ConfidenceScore,\n  ): Promise<string> {\n    return `Plan uses ${strategy} strategy with ${tasks.length} tasks to address the query. ` +\n      `Confidence: ${Math.round(Number(confidence) * 100)}%. ` +\n      `Tasks are ordered to maximize parallelism while respecting dependencies.`\n  }\n\n  /**\n   * Estimate total tokens needed\n   */\n  private estimateTotalTokens(tasks: PlanTask[], searchQueries: GeneratedSearchQuery[]): number {\n    let total = 0\n\n    // Task tokens\n    tasks.forEach((t) => {\n      total += t.estimatedTokens || 500\n    })\n\n    // Search query tokens (estimate 200 per search)\n    total += searchQueries.length * 200\n\n    // Add overhead for orchestration\n    total += 500\n\n    return total\n  }\n\n  /**\n   * Normalize intent from string\n   */\n  private normalizeIntent(intent: string): IntentType {\n    const normalized = String(intent || '').toUpperCase()\n    if (Object.values(IntentEnum).includes(normalized as IntentType)) {\n      return normalized as IntentType\n    }\n    return IntentEnum.INFORMATIONAL\n  }\n\n  /**\n   * Normalize task type from string\n   */\n  private normalizeTaskType(type: string): TaskType {\n    const normalized = String(type || '').toUpperCase()\n    // Return as-is if valid, otherwise default to SEARCH\n    return (normalized as TaskType) || 'search'\n  }\n\n  /**\n   * Normalize priority from string\n   */\n  private normalizePriority(priority: string): 'normal' {\n    // For now, return normal priority\n    // Can be expanded to support different priorities\n    return 'normal'\n  }\n\n  /**\n   * Get default tasks based on analysis\n   */\n  private getDefaultTasks(analysis: QueryAnalysis): PlanTask[] {\n    return [\n      {\n        id: `task_search_${nanoid(8)}`,\n        type: 'search' as TaskType,\n        description: `Search for information about \"${analysis.mainTopic}\"`,\n        priority: 'high' as const,\n        dependsOn: [],\n        expectedOutput: `Search results and relevant sources about ${analysis.mainTopic}`,\n        estimatedTokens: 500,\n      },\n      {\n        id: `task_synthesize_${nanoid(8)}`,\n        type: 'synthesize' as TaskType,\n        description: 'Synthesize findings into coherent answer',\n        priority: 'high' as const,\n        dependsOn: [`task_search_${nanoid(8)}`],\n        expectedOutput: 'Comprehensive answer addressing the query',\n        estimatedTokens: 1000,\n      },\n    ]\n  }\n}\n\n/**\n * Create a planner agent with default settings\n */\nexport function createPlannerAgent(model?: string): PlannerAgent {\n  return new PlannerAgent(model)\n}\n"
+/**
+ * Planner Agent
+ *
+ * Takes a user query and produces a detailed execution plan.
+ * Handles query analysis, intent detection, task decomposition,
+ * and confidence estimation.
+ */
+
+import { generateText } from 'ai'
+import { nanoid } from 'nanoid'
+import { createLogger } from '@/lib/logging'
+import type {
+  ExecutionPlan,
+  PlannerInput,
+  QueryAnalysis,
+  IntentType,
+  TaskType,
+  ReasoningStrategy,
+  ConfidenceScore,
+  PlanTask,
+  GeneratedSearchQuery,
+} from './types'
+import { IntentType as IntentEnum, ReasoningStrategy as ReasoningStrategyEnum, createConfidenceScore } from './types'
+import { validateExecutionPlan } from './validator'
+import * as prompts from './prompts'
+
+const logger = createLogger('research:planner')
+
+const DEFAULT_MODEL = 'openai/gpt-4o-mini'
+
+/**
+ * Planner Agent class
+ */
+export class PlannerAgent {
+  private model: string
+
+  constructor(model: string = DEFAULT_MODEL) {
+    this.model = model
+  }
+
+  /**
+   * Create an execution plan for a user query
+   */
+  async plan(input: PlannerInput): Promise<ExecutionPlan> {
+    const startTime = performance.now()
+    const planId = nanoid()
+
+    logger.info('Planning query')
+
+    try {
+      // Step 1: Analyze the query
+      const analysis = await this.analyzeQuery(input.query)
+      logger.info('Query analyzed')
+
+      // Step 2: Decompose into tasks
+      const tasks = await this.decomposeTasks(input.query, analysis)
+      logger.info('Tasks decomposed')
+
+      // Step 3: Generate search queries
+      const searchQueries = await this.generateSearchQueries(input.query, tasks)
+      logger.info('Search queries generated')
+
+      // Step 4: Select required tools
+      const requiredTools = await this.selectTools(input.query, tasks, searchQueries)
+      logger.info('Tools selected')
+
+      // Step 5: Select reasoning strategy
+      const strategy = await this.selectStrategy(tasks)
+      logger.info('Strategy selected')
+
+      // Step 6: Calculate confidence
+      const confidence = await this.scoreConfidence(input.query, tasks, searchQueries, strategy)
+      logger.info('Confidence scored')
+
+      // Step 7: Build plan
+      const plan: ExecutionPlan = {
+        id: planId,
+        query: input.query,
+        intent: analysis.intent,
+        objective: await this.generateObjective(input.query, analysis),
+        tasks,
+        searchQueries,
+        requiredTools,
+        expectedOutputs: await this.generateExpectedOutputs(input.query, analysis, tasks),
+        reasoningStrategy: strategy,
+        confidence,
+        reasoning: await this.generateReasoning(input.query, tasks, strategy, confidence),
+        estimatedTotalTokens: this.estimateTotalTokens(tasks, searchQueries),
+        createdAt: new Date(),
+      }
+
+      // Step 8: Validate plan
+      const validation = validateExecutionPlan(plan)
+      if (!validation.valid) {
+        const errorMessages = validation.errors.map((e) => `${e.code}: ${e.message}`).join('; ')
+        throw new Error(`Plan validation failed: ${errorMessages}`)
+      }
+
+      const durationMs = performance.now() - startTime
+      logger.info('Plan created successfully')
+
+      return plan
+    } catch (error) {
+      const err = error instanceof Error ? error : new Error(String(error))
+      logger.error('Planning failed', { error: err.message })
+      throw err
+    }
+  }
+
+  /**
+   * Analyze the user query to understand intent and content
+   */
+  private async analyzeQuery(query: string): Promise<QueryAnalysis> {
+    try {
+      const response = await generateText({
+        model: this.model,
+        system: prompts.ANALYZE_QUERY_SYSTEM_PROMPT,
+        prompt: query,
+        temperature: 0.3,
+      })
+
+      const parsed = JSON.parse(response.text)
+
+      return {
+        intent: this.normalizeIntent(parsed.intent),
+        mainTopic: parsed.mainTopic || 'unspecified',
+        entities: Array.isArray(parsed.entities) ? parsed.entities : [],
+        concepts: Array.isArray(parsed.concepts) ? parsed.concepts : [],
+        complexity: Math.max(1, Math.min(5, parseInt(parsed.complexity) || 2)),
+        isActionable: parsed.isActionable !== false,
+      }
+    } catch (error) {
+      logger.warn('Query analysis failed, using defaults', { error })
+      return {
+        intent: IntentEnum.INFORMATIONAL,
+        mainTopic: 'unspecified',
+        entities: [],
+        concepts: [],
+        complexity: 2,
+        isActionable: true,
+      }
+    }
+  }
+
+  /**
+   * Decompose query into actionable tasks
+   */
+  private async decomposeTasks(query: string, analysis: QueryAnalysis): Promise<PlanTask[]> {
+    try {
+      const objective = `Address query about ${analysis.mainTopic}`
+      const intentStr =
+        Object.keys(IntentEnum).find((k) => IntentEnum[k as keyof typeof IntentEnum] === analysis.intent) ||
+        'INFORMATIONAL'
+
+      const prompt = prompts.DECOMPOSE_TASKS_PROMPT.replace('{objective}', objective).replace('{intent}', intentStr)
+
+      const response = await generateText({
+        model: this.model,
+        prompt,
+        temperature: 0.5,
+      })
+
+      const parsed = JSON.parse(response.text)
+      if (!Array.isArray(parsed)) return this.getDefaultTasks(analysis)
+
+      return parsed.map((task: Record<string, unknown>, idx: number) => ({
+        id: `task_${idx}_${nanoid(8)}`,
+        type: this.normalizeTaskType(task.type as string),
+        description: String(task.description || ''),
+        priority: this.normalizePriority(task.priority as string),
+        dependsOn: Array.isArray(task.dependsOn) ? task.dependsOn : [],
+        expectedOutput: String(task.expectedOutput || ''),
+      }))
+    } catch (error) {
+      logger.warn('Task decomposition failed, using defaults', { error })
+      return this.getDefaultTasks(analysis)
+    }
+  }
+
+  /**
+   * Generate search queries for research tasks
+   */
+  private async generateSearchQueries(query: string, tasks: PlanTask[]): Promise<GeneratedSearchQuery[]> {
+    try {
+      const taskSummary = tasks
+        .map((t) => `- ${t.id}: ${t.description}`)
+        .join(
+          '\
+',
+        )
+
+      const prompt = prompts.GENERATE_SEARCH_QUERIES_PROMPT.replace('{objective}', query).replace(
+        '{tasks}',
+        taskSummary,
+      )
+
+      const response = await generateText({
+        model: this.model,
+        prompt,
+        temperature: 0.5,
+      })
+
+      const parsed = JSON.parse(response.text)
+      if (!Array.isArray(parsed)) return []
+
+      return parsed.map((sq: Record<string, unknown>) => ({
+        id: `search_${nanoid(8)}`,
+        query: {
+          query: String(sq.query || ''),
+          limit: 10,
+        },
+        rationale: String(sq.rationale || ''),
+        supportsTask: String(sq.taskId || tasks[0]?.id || ''),
+        priority: this.normalizePriority(sq.priority as string),
+      }))
+    } catch (error) {
+      logger.warn('Search query generation failed', { error })
+      return []
+    }
+  }
+
+  /**
+   * Select required tools
+   */
+  private async selectTools(
+    query: string,
+    tasks: PlanTask[],
+    searchQueries: GeneratedSearchQuery[],
+  ): Promise<Record<string, unknown>> {
+    try {
+      const taskSummary = tasks.map((t) => t.type).join(', ')
+      const prompt = prompts.SELECT_TOOLS_PROMPT.replace('{objective}', query)
+        .replace('{tasks}', taskSummary)
+        .replace('{searchQueryCount}', String(searchQueries.length))
+
+      const response = await generateText({
+        model: this.model,
+        prompt,
+        temperature: 0.3,
+      })
+
+      const parsed = JSON.parse(response.text)
+
+      return {
+        searchProviders: parsed.search ? ['tavily', 'exa'] : [],
+        browserNeeded: parsed.browser === true,
+        reasoningNeeded: parsed.reasoning === true,
+        critiqueNeeded: parsed.critique === true,
+      }
+    } catch (error) {
+      logger.warn('Tool selection failed, using defaults', { error })
+      return {
+        searchProviders: searchQueries.length > 0 ? ['tavily'] : [],
+        browserNeeded: false,
+        reasoningNeeded: true,
+        critiqueNeeded: false,
+      }
+    }
+  }
+
+  /**
+   * Select execution strategy
+   */
+  private async selectStrategy(tasks: PlanTask[]): Promise<ReasoningStrategy> {
+    try {
+      const taskSummary = tasks.map((t) => `${t.id} (depends on: ${t.dependsOn.join(', ') || 'none'})`).join('; ')
+
+      const prompt = prompts.SELECT_STRATEGY_PROMPT.replace('{tasks}', taskSummary)
+
+      const response = await generateText({
+        model: this.model,
+        prompt,
+        temperature: 0.3,
+      })
+
+      const strategy = response.text.toUpperCase().trim()
+
+      if (Object.values(ReasoningStrategyEnum).includes(strategy as ReasoningStrategy)) {
+        return strategy as ReasoningStrategy
+      }
+
+      return ReasoningStrategyEnum.ADAPTIVE
+    } catch (error) {
+      logger.warn('Strategy selection failed, using ADAPTIVE', { error })
+      return ReasoningStrategyEnum.ADAPTIVE
+    }
+  }
+
+  /**
+   * Score confidence in the plan
+   */
+  private async scoreConfidence(
+    query: string,
+    tasks: PlanTask[],
+    searchQueries: GeneratedSearchQuery[],
+    strategy: ReasoningStrategy,
+  ): Promise<ConfidenceScore> {
+    try {
+      const prompt = prompts.SCORE_CONFIDENCE_PROMPT.replace('{objective}', query)
+        .replace('{taskCount}', String(tasks.length))
+        .replace('{searchCount}', String(searchQueries.length))
+        .replace('{strategy}', strategy)
+
+      const response = await generateText({
+        model: this.model,
+        prompt,
+        temperature: 0.2,
+      })
+
+      const scoreStr = response.text.trim()
+      const score = parseFloat(scoreStr) || 0.7
+
+      return createConfidenceScore(score)
+    } catch (error) {
+      logger.warn('Confidence scoring failed, using default', { error })
+      return createConfidenceScore(0.6)
+    }
+  }
+
+  /**
+   * Generate objective statement
+   */
+  private async generateObjective(query: string, analysis: QueryAnalysis): Promise<string> {
+    return `Address query about \"${analysis.mainTopic}\": ${query.substring(0, 100)}${query.length > 100 ? '...' : ''}`
+  }
+
+  /**
+   * Generate expected outputs
+   */
+  private async generateExpectedOutputs(query: string, analysis: QueryAnalysis, tasks: PlanTask[]): Promise<string[]> {
+    return [
+      `Comprehensive answer to: \"${query.substring(0, 80)}...\"`,
+      `${tasks.length} research tasks completed`,
+      'Key findings synthesized',
+      'Sources cited',
+    ]
+  }
+
+  /**
+   * Generate reasoning explanation
+   */
+  private async generateReasoning(
+    query: string,
+    tasks: PlanTask[],
+    strategy: ReasoningStrategy,
+    confidence: ConfidenceScore,
+  ): Promise<string> {
+    return (
+      `Plan uses ${strategy} strategy with ${tasks.length} tasks to address the query. ` +
+      `Confidence: ${Math.round(Number(confidence) * 100)}%. ` +
+      `Tasks are ordered to maximize parallelism while respecting dependencies.`
+    )
+  }
+
+  /**
+   * Estimate total tokens needed
+   */
+  private estimateTotalTokens(tasks: PlanTask[], searchQueries: GeneratedSearchQuery[]): number {
+    let total = 0
+
+    // Task tokens
+    tasks.forEach((t) => {
+      total += t.estimatedTokens || 500
+    })
+
+    // Search query tokens (estimate 200 per search)
+    total += searchQueries.length * 200
+
+    // Add overhead for orchestration
+    total += 500
+
+    return total
+  }
+
+  /**
+   * Normalize intent from string
+   */
+  private normalizeIntent(intent: string): IntentType {
+    const normalized = String(intent || '').toUpperCase()
+    if (Object.values(IntentEnum).includes(normalized as IntentType)) {
+      return normalized as IntentType
+    }
+    return IntentEnum.INFORMATIONAL
+  }
+
+  /**
+   * Normalize task type from string
+   */
+  private normalizeTaskType(type: string): TaskType {
+    const normalized = String(type || '').toUpperCase()
+    // Return as-is if valid, otherwise default to SEARCH
+    return (normalized as TaskType) || 'search'
+  }
+
+  /**
+   * Normalize priority from string
+   */
+  private normalizePriority(priority: string): 'normal' {
+    // For now, return normal priority
+    // Can be expanded to support different priorities
+    return 'normal'
+  }
+
+  /**
+   * Get default tasks based on analysis
+   */
+  private getDefaultTasks(analysis: QueryAnalysis): PlanTask[] {
+    return [
+      {
+        id: `task_search_${nanoid(8)}`,
+        type: 'search' as TaskType,
+        description: `Search for information about \"${analysis.mainTopic}\"`,
+        priority: 'high' as const,
+        dependsOn: [],
+        expectedOutput: `Search results and relevant sources about ${analysis.mainTopic}`,
+        estimatedTokens: 500,
+      },
+      {
+        id: `task_synthesize_${nanoid(8)}`,
+        type: 'synthesize' as TaskType,
+        description: 'Synthesize findings into coherent answer',
+        priority: 'high' as const,
+        dependsOn: [`task_search_${nanoid(8)}`],
+        expectedOutput: 'Comprehensive answer addressing the query',
+        estimatedTokens: 1000,
+      },
+    ]
+  }
+}
+
+/**
+ * Create a planner agent with default settings
+ */
+export function createPlannerAgent(model?: string): PlannerAgent {
+  return new PlannerAgent(model)
+}
