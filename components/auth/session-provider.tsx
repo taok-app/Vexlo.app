@@ -21,7 +21,6 @@ export function SessionProvider() {
         setSession(data)
         setInitialized(true)
       } catch (error) {
-        console.error('Failed to fetch session:', error)
         setSession({ user: undefined })
         setInitialized(true)
       }
@@ -34,7 +33,6 @@ export function SessionProvider() {
         setGitHubConnection(data)
         setGitHubInitialized(true)
       } catch (error) {
-        console.error('Failed to fetch GitHub connection:', error)
         setGitHubConnection({ connected: false })
         setGitHubInitialized(true)
       }

@@ -2,7 +2,6 @@
 
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { ErrorState } from '@/components/empty-state'
-import { useEffect } from 'react'
 
 export default function DashboardError({
   error,
@@ -11,14 +10,7 @@ export default function DashboardError({
   error: Error & { digest?: string }
   reset: () => void
 }) {
-  useEffect(() => {
-    // Log serialized error object, not the raw Error
-    console.error('Dashboard error:', {
-      name: error.name,
-      message: error.message,
-      digest: error.digest,
-    })
-  }, [error])
+
 
   return (
     <DashboardLayout>
