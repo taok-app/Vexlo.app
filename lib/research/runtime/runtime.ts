@@ -73,19 +73,9 @@ export class ResearchRuntime {
     this.search = new SearchAgent()
     this.browser = new BrowserAgent()
 
-    // Initialize workflow integration
-    this.stageRegistry = new DefaultStageRegistry()
-    const workflow = WorkflowPresets.standardResearch()
-    const builtinMiddleware = [
-      getBuiltinMiddleware('logging'),
-      getBuiltinMiddleware('timing'),
-      getBuiltinMiddleware('retry'),
-    ].filter((m) => m !== undefined) as any[]
-    this.workflowIntegration = new RuntimeWorkflowIntegration(
-      workflow,
-      this.stageRegistry as any,
-      builtinMiddleware as any,
-    )
+    // Initialize workflow integration lazily to avoid initialization errors
+    this.stageRegistry = null
+    this.workflowIntegration = null
   }
 
   async run(input: PlannerInput, checkpoint?: RuntimeCheckpoint): Promise<RuntimeOutput> {
@@ -105,8 +95,23 @@ export class ResearchRuntime {
     const timings: Record<RuntimeStage, number> = {} as Record<RuntimeStage, number>
     const stageResults: Record<string, unknown> = {}
 
+    // Lazy initialize workflow integration
     if (!this.workflowIntegration) {
-      throw new Error('Workflow integration not initialized')
+      try {
+        this.stageRegistry = new DefaultStageRegistry() as any
+        const workflow = WorkflowPresets.standardResearch()
+        const loggingMiddleware = getBuiltinMiddleware('logging')
+        const timingMiddleware = getBuiltinMiddleware('timing')
+        const retryMiddleware = getBuiltinMiddleware('retry')
+        const builtinMiddleware = [loggingMiddleware, timingMiddleware, retryMiddleware].filter(
+          (m) => m !== undefined,
+        ) as any[]
+        this.workflowIntegration = new RuntimeWorkflowIntegration(workflow, this.stageRegistry, builtinMiddleware)
+      } catch (error) {
+        const err = error instanceof Error ? error : new Error(String(error))
+        logger.error('[Runtime] Failed to initialize workflow integration', { error: err.message })
+        throw err
+      }
     }
 
     try {
