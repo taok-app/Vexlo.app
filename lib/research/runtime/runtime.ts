@@ -20,12 +20,6 @@ import {
 import { executeWithRetry, DEFAULT_RETRY_POLICY } from './retry'
 import { BoundedScheduler } from './scheduler'
 import { validatePlannerInput, validateRuntimeOptions, validateDependencies, logValidationErrors } from './validator'
-import { RuntimeWorkflowIntegration } from './integration'
-import { WorkflowPresets } from '@/lib/research/workflow/presets'
-import { DefaultStageRegistry } from '@/lib/research/workflow/registry'
-import { createRuntimeContext, recordMetric, recordFailure } from '@/lib/research/middleware/context'
-import { getBuiltinMiddleware } from '@/lib/research/middleware/builtins'
-import type { WorkflowContext } from '@/lib/research/workflow/types'
 
 export class ResearchRuntime {
   private stage: RuntimeStage = RuntimeStage.IDLE
@@ -40,8 +34,13 @@ export class ResearchRuntime {
   private browser: BrowserAgent
   private options: RuntimeOptions
   private deps: RuntimeDependencies
-  private workflowIntegration: RuntimeWorkflowIntegration | null = null
+  private workflowIntegration: any = null
   private stageRegistry: any = null
+  private middlewareFunctions: {
+    createRuntimeContext: any
+    recordMetric: any
+    recordFailure: any
+  } | null = null
 
   constructor(options: RuntimeOptions = {}, deps: RuntimeDependencies = {}) {
     const optionsValidation = validateRuntimeOptions(options)
@@ -98,7 +97,20 @@ export class ResearchRuntime {
     // Lazy initialize workflow integration
     if (!this.workflowIntegration) {
       try {
+        // Dynamic imports to avoid circular dependency issues
+        const { RuntimeWorkflowIntegration } = await import('./integration')
+        const { WorkflowPresets } = await import('@/lib/research/workflow/presets')
+        const { DefaultStageRegistry } = await import('@/lib/research/workflow/registry')
+        const middlewareContextModule = await import('@/lib/research/middleware/context')
+        const { getBuiltinMiddleware } = await import('@/lib/research/middleware/builtins')
+
         this.stageRegistry = new DefaultStageRegistry() as any
+        this.middlewareFunctions = {
+          createRuntimeContext: middlewareContextModule.createRuntimeContext,
+          recordMetric: middlewareContextModule.recordMetric,
+          recordFailure: middlewareContextModule.recordFailure,
+        }
+
         const workflow = WorkflowPresets.standardResearch()
         const loggingMiddleware = getBuiltinMiddleware('logging')
         const timingMiddleware = getBuiltinMiddleware('timing')
@@ -129,7 +141,7 @@ export class ResearchRuntime {
         this.stage = runtimeStage
 
         // Create runtime context for middleware
-        const middlewareContext = createRuntimeContext(
+        const middlewareContext = this.middlewareFunctions!.createRuntimeContext(
           `exec-${this.startTime}`,
           'research-workflow',
           runtimeStage,
@@ -151,13 +163,13 @@ export class ResearchRuntime {
           timings[runtimeStage] = Date.now() - stageStart
 
           // Record metrics
-          recordMetric(middlewareContext, stageId, timings[runtimeStage])
+          this.middlewareFunctions!.recordMetric(middlewareContext, stageId, timings[runtimeStage])
 
           this.emitter.emit(createStageCompleteEvent(runtimeStage, result))
         } catch (error) {
           const err = error instanceof Error ? error : new Error(String(error))
           timings[runtimeStage] = Date.now() - stageStart
-          recordFailure(middlewareContext, stageId)
+          this.middlewareFunctions!.recordFailure(middlewareContext, stageId)
           this.emitter.emit(createStageErrorEvent(runtimeStage, err))
 
           if (this.options.failFast ?? true) {
