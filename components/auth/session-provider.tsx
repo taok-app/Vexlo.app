@@ -41,7 +41,10 @@ export function SessionProvider() {
     }
 
     const fetchAll = async () => {
-      await Promise.all([fetchSession(), fetchGitHubConnection()])
+      await Promise.all([
+        fetchSession().catch(() => {}),
+        fetchGitHubConnection().catch(() => {}),
+      ])
     }
 
     fetchAll()

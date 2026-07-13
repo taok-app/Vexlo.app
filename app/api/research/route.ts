@@ -14,22 +14,26 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  const session = await getServerSession()
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  try {
+    const session = await getServerSession()
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const { data, error } = await parseBody(req, createSessionSchema)
+    if (error) {
+      return NextResponse.json({ error }, { status: 422 })
+    }
+
+    const created = await service.createSession({
+      userId: session.user.id,
+      organizationId: data!.organizationId,
+      title: data!.title,
+      query: data!.query,
+    })
+
+    return NextResponse.json({ session: created }, { status: 201 })
+  } catch (error) {
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
-
-  const { data, error } = await parseBody(req, createSessionSchema)
-  if (error) {
-    return NextResponse.json({ error }, { status: 422 })
-  }
-
-  const created = await service.createSession({
-    userId: session.user.id,
-    organizationId: data!.organizationId,
-    title: data!.title,
-    query: data!.query,
-  })
-
-  return NextResponse.json({ session: created }, { status: 201 })
 }

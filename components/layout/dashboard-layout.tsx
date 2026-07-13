@@ -32,11 +32,28 @@ export function DashboardLayout({ children, breadcrumb }: DashboardLayoutProps) 
   // Check for authentication on client side
   useEffect(() => {
     if (mounted && !session?.user) {
-      router.push('/auth/login')
+      // Use replace to prevent back button to login
+      router.replace('/auth/login')
     }
   }, [session, mounted, router])
 
-  if (!mounted || !session?.user) {
+  if (!mounted) {
+    return (
+      <div className="h-screen flex flex-col">
+        <div className="h-16 border-b border-border bg-card" />
+        <div className="flex-1 flex">
+          <div className="hidden lg:block w-64 border-r border-border bg-card" />
+          <div className="flex-1 overflow-auto p-8">
+            <Skeleton className="h-8 w-32 mb-4" />
+            <Skeleton className="h-96" />
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Render empty state while redirecting
+  if (!session?.user) {
     return (
       <div className="h-screen flex flex-col">
         <div className="h-16 border-b border-border bg-card" />

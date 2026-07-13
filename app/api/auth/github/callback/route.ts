@@ -55,8 +55,6 @@ export async function GET(req: NextRequest): Promise<Response> {
   }
 
   try {
-    console.log('[GitHub Callback] Starting OAuth flow, mode:', authMode)
-
     // Exchange code for access token
     const tokenResponse = await fetch('https://github.com/login/oauth/access_token', {
       method: 'POST',
@@ -72,9 +70,6 @@ export async function GET(req: NextRequest): Promise<Response> {
     })
 
     if (!tokenResponse.ok) {
-      console.error('[GitHub Callback] Token exchange failed with status:', tokenResponse.status)
-      const errorText = await tokenResponse.text()
-      console.error('[GitHub Callback] Error response:', errorText)
       return new Response('Failed to exchange code for token', { status: 400 })
     }
 
@@ -86,10 +81,7 @@ export async function GET(req: NextRequest): Promise<Response> {
       error_description?: string
     }
 
-    console.log('[GitHub Callback] Token data received, has access_token:', !!tokenData.access_token)
-
     if (!tokenData.access_token) {
-      console.error('[GitHub Callback] Failed to get GitHub access token:', tokenData)
       return new Response(
         `Failed to authenticate with GitHub: ${tokenData.error_description || tokenData.error || 'Unknown error'}`,
         { status: 400 },
@@ -111,15 +103,11 @@ export async function GET(req: NextRequest): Promise<Response> {
 
     if (isSignInFlow) {
       // SIGN-IN FLOW: Create a new session for the GitHub user
-      console.log('[GitHub Callback] Sign-in flow - creating GitHub session')
       const session = await createGitHubSession(tokenData.access_token, tokenData.scope)
 
       if (!session) {
-        console.error('[GitHub Callback] Failed to create GitHub session')
         return new Response('Failed to create session', { status: 500 })
       }
-
-      console.log('[GitHub Callback] GitHub session created for user:', session.user.id)
       // Note: Tokens are already stored in users table by upsertUser() in createGitHubSession()
 
       // Create response with redirect
@@ -156,10 +144,6 @@ export async function GET(req: NextRequest): Promise<Response> {
 
         // If the GitHub account belongs to a different user, we need to merge accounts
         if (connectedUserId !== storedUserId) {
-          console.log(
-            `[GitHub Callback] Merging accounts: GitHub account ${githubUser.id} belongs to user ${connectedUserId}, connecting to user ${storedUserId}`,
-          )
-
           // Transfer all tasks, connectors, accounts, and keys from old user to new user
           await db.update(tasks).set({ userId: storedUserId! }).where(eq(tasks.userId, connectedUserId))
           await db.update(connectors).set({ userId: storedUserId! }).where(eq(connectors.userId, connectedUserId))
@@ -168,10 +152,6 @@ export async function GET(req: NextRequest): Promise<Response> {
 
           // Delete the old user record (this will cascade delete their accounts/keys)
           await db.delete(users).where(eq(users.id, connectedUserId))
-
-          console.log(
-            `[GitHub Callback] Account merge complete. Old user ${connectedUserId} merged into ${storedUserId}`,
-          )
 
           // Update the GitHub account token
           await db
@@ -224,10 +204,8 @@ export async function GET(req: NextRequest): Promise<Response> {
       return Response.redirect(new URL(storedRedirectTo, req.nextUrl.origin))
     }
   } catch (error) {
-    console.error('[GitHub Callback] OAuth callback error:', error)
-    console.error('[GitHub Callback] Error stack:', error instanceof Error ? error.stack : 'No stack trace')
     return new Response(
-      `Failed to complete GitHub authentication: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      'Failed to complete GitHub authentication',
       { status: 500 },
     )
   }
