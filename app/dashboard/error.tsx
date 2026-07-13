@@ -12,7 +12,12 @@ export default function DashboardError({
   reset: () => void
 }) {
   useEffect(() => {
-    console.error('Dashboard error:', error)
+    // Log serialized error object, not the raw Error
+    console.error('Dashboard error:', {
+      name: error.name,
+      message: error.message,
+      digest: error.digest,
+    })
   }, [error])
 
   return (

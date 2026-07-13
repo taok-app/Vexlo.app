@@ -8,6 +8,7 @@ const PUBLIC_ROUTES = [
   '/auth/github/callback',
   '/auth/vercel/callback',
   '/api/auth',
+  '/api/github', // GitHub webhook routes
 ]
 
 // Routes that should redirect to dashboard if already authenticated
