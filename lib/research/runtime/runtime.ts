@@ -2,13 +2,15 @@ import { createLogger } from '@/lib/logging'
 import { PlannerAgent } from '@/lib/research/planner/planner'
 
 const logger = createLogger('[ResearchRuntime]')
-import { SearchAgent, ResearchSearchAgent } from '@/lib/research/search/search-agent'
-import { BrowserAgent, ResearchBrowserAgent } from '@/lib/research/browser/browser-agent'
+import { ResearchSearchAgent } from '@/lib/research/search/search-agent'
+import { ResearchBrowserAgent } from '@/lib/research/browser/browser-agent'
 import { EvidenceGraph } from '@/lib/research/evidence/graph'
 import { EvidenceGraphBuilder } from '@/lib/research/evidence/builder'
-import type { PlannerInput } from '@/lib/research/planner/types'
-import type { SearchTask } from '@/lib/research/search/types'
-import type { RuntimeOutput, RuntimeOptions, RuntimeDependencies, RuntimeCheckpoint, PlannerResult } from './types'
+import type { PlannerInput, ExecutionPlan } from '@/lib/research/planner/types'
+import type { SearchTask, SearchGenerationResult } from '@/lib/research/search/types'
+import type { BrowserRunResult } from '@/lib/research/browser/types'
+import type { RuntimeOutput, RuntimeOptions, RuntimeDependencies, RuntimeCheckpoint, PlannerResult, ReasoningAdapter } from './types'
+import type { ReasoningResultLike } from '@/lib/research/evidence/types'
 import { RuntimeStage, RuntimeEventType } from './types'
 import {
   SimpleEventEmitter,
@@ -21,6 +23,8 @@ import { executeWithRetry, DEFAULT_RETRY_POLICY } from './retry'
 import { BoundedScheduler } from './scheduler'
 import { validatePlannerInput, validateRuntimeOptions, validateDependencies, logValidationErrors } from './validator'
 import type { WorkflowContext } from '@/lib/research/workflow/types'
+import type { RuntimeWorkflowIntegration } from './integration'
+import { createRuntimeContext, recordMetric, recordFailure } from '@/lib/research/middleware/context'
 
 export class ResearchRuntime {
   private stage: RuntimeStage = RuntimeStage.IDLE
@@ -35,12 +39,11 @@ export class ResearchRuntime {
   private browser: ResearchBrowserAgent
   private options: RuntimeOptions
   private deps: RuntimeDependencies
-  private workflowIntegration: any = null
-  private stageRegistry: any = null
+  private workflowIntegration: RuntimeWorkflowIntegration | null = null
   private middlewareFunctions: {
-    createRuntimeContext: any
-    recordMetric: any
-    recordFailure: any
+    createRuntimeContext: typeof createRuntimeContext
+    recordMetric: typeof recordMetric
+    recordFailure: typeof recordFailure
   } | null = null
 
   constructor(options: RuntimeOptions = {}, deps: RuntimeDependencies = {}) {
@@ -70,11 +73,10 @@ export class ResearchRuntime {
 
     this.scheduler = new BoundedScheduler(this.options.maxConcurrentBrowserRequests)
     this.planner = new PlannerAgent()
-    this.search = new SearchAgent()
-    this.browser = new BrowserAgent()
+    this.search = new ResearchSearchAgent()
+    this.browser = new ResearchBrowserAgent()
 
     // Initialize workflow integration lazily to avoid initialization errors
-    this.stageRegistry = null
     this.workflowIntegration = null
   }
 
@@ -101,15 +103,12 @@ export class ResearchRuntime {
         // Dynamic imports to avoid circular dependency issues
         const { RuntimeWorkflowIntegration } = await import('./integration')
         const { WorkflowPresets } = await import('@/lib/research/workflow/presets')
-        const { DefaultStageRegistry } = await import('@/lib/research/workflow/registry')
-        const middlewareContextModule = await import('@/lib/research/middleware/context')
         const { getBuiltinMiddleware } = await import('@/lib/research/middleware/builtins')
 
-        this.stageRegistry = new DefaultStageRegistry() as any
         this.middlewareFunctions = {
-          createRuntimeContext: middlewareContextModule.createRuntimeContext,
-          recordMetric: middlewareContextModule.recordMetric,
-          recordFailure: middlewareContextModule.recordFailure,
+          createRuntimeContext,
+          recordMetric,
+          recordFailure,
         }
 
         const workflow = WorkflowPresets.standardResearch()
@@ -119,7 +118,8 @@ export class ResearchRuntime {
         const builtinMiddleware = [loggingMiddleware, timingMiddleware, retryMiddleware].filter(
           (m) => m !== undefined,
         ) as any[]
-        this.workflowIntegration = new RuntimeWorkflowIntegration(workflow, this.stageRegistry, builtinMiddleware)
+        const { DefaultStageRegistry } = await import('@/lib/research/workflow/registry')
+        this.workflowIntegration = new RuntimeWorkflowIntegration(workflow, new DefaultStageRegistry(), builtinMiddleware)
       } catch (error) {
         const err = error instanceof Error ? error : new Error(String(error))
         logger.error('[Runtime] Failed to initialize workflow integration', { error: err.message })
@@ -181,10 +181,12 @@ export class ResearchRuntime {
       }
 
       // Build final output
-      const plannerResult = stageResults[RuntimeStage.PLANNING] as PlannerResult | undefined
-      const searchResults = stageResults[RuntimeStage.SEARCHING] as SearchTask[] | undefined
-      const browserResults = stageResults[RuntimeStage.BROWSING] as any[] | undefined
-      const reasoningResult = stageResults[RuntimeStage.REASONING] as any | undefined
+      const plannerResult = stageResults[RuntimeStage.PLANNING] as ExecutionPlan | undefined
+      const searchGenResult = stageResults[RuntimeStage.SEARCHING] as SearchGenerationResult | undefined
+      const searchResults: SearchTask[] = searchGenResult?.tasks ?? []
+      const browserRunResult = stageResults[RuntimeStage.BROWSING] as BrowserRunResult | undefined
+      const browserResults = browserRunResult?.sources ?? []
+      const reasoningResult = stageResults[RuntimeStage.REASONING] as ReasoningResultLike | undefined
 
       if (reasoningResult) {
         builder.addReasoningResult(reasoningResult)
@@ -202,9 +204,11 @@ export class ResearchRuntime {
       const output: RuntimeOutput = {
         graph: graph.snapshot(),
         stages: {
-          planner: plannerResult || { plan: null, confidence: 0, taskCount: 0 },
-          search: searchResults || [],
-          browser: browserResults || [],
+          planner: plannerResult
+            ? { plan: plannerResult, confidence: Number(plannerResult.confidence), taskCount: plannerResult.tasks.length }
+            : { plan: null, confidence: 0, taskCount: 0 },
+          search: searchResults,
+          browser: browserResults,
           reasoning: reasoningResult,
         },
         timing: {
@@ -243,26 +247,28 @@ export class ResearchRuntime {
         return this.planner.plan(input)
 
       case RuntimeStage.SEARCHING: {
-        const planResult = results[RuntimeStage.PLANNING]
-        return this.search.generate(planResult as any, { expansion: { maxExpansions: 3 } } as any)
+        const planResult = results[RuntimeStage.PLANNING] as ExecutionPlan
+        return this.search.generate(planResult, { expansion: { maxVariantsPerQuery: 3 } })
       }
 
       case RuntimeStage.BROWSING: {
-        const searchResults = results[RuntimeStage.SEARCHING] as SearchTask[]
-        return this.browser.execute(searchResults, {
-          maxConcurrent: this.options.maxConcurrentBrowserRequests || 5,
-          timeout: this.options.browserTimeout || 300000,
-          failFast: this.options.failFast ?? true,
-        } as any) as any
+        const searchGenResult = results[RuntimeStage.SEARCHING] as SearchGenerationResult
+        const searchTasks = searchGenResult?.tasks ?? []
+        return this.browser.execute(searchTasks, {
+          concurrency: this.options.maxConcurrentBrowserRequests || 5,
+          timeoutMs: this.options.browserTimeout || 300000,
+        })
       }
 
       case RuntimeStage.REASONING: {
         if (!this.deps.reasoningAdapter) {
           return undefined
         }
-        const searchResults = results[RuntimeStage.SEARCHING] as SearchTask[]
-        const browserResults = results[RuntimeStage.BROWSING] as any[]
-        return this.deps.reasoningAdapter.reason(searchResults, browserResults) as any
+        const searchGenResult = results[RuntimeStage.SEARCHING] as SearchGenerationResult
+        const searchResults: SearchTask[] = searchGenResult?.tasks ?? []
+        const browserRunResult = results[RuntimeStage.BROWSING] as BrowserRunResult
+        const browserResults = browserRunResult?.sources ?? []
+        return this.deps.reasoningAdapter.reason(searchResults, browserResults)
       }
 
       case RuntimeStage.GRAPH_BUILDING:

@@ -48,7 +48,7 @@ export class RuntimeWorkflowIntegration {
     }
 
     // Execute through middleware pipeline
-    return this.middlewareExecutor.execute(context, stage.getConfig() as any, stageExecutor, {
+    return this.middlewareExecutor.execute(context, stage.getConfig(), stageExecutor, {
       abortSignal: context.abortSignal,
     })
   }
@@ -61,19 +61,4 @@ export class RuntimeWorkflowIntegration {
     return this.pipeline
   }
 
-  getStageRegistry(): StageRegistry {
-    const def = this.pipeline.getWorkflowDefinition()
-    return {
-      register() {},
-      resolve(stageId: string) {
-        throw new Error(`StageRegistry method not available in integration: ${stageId}`)
-      },
-      has() {
-        return false
-      },
-      getAll() {
-        return new Map()
-      },
-    }
-  }
 }

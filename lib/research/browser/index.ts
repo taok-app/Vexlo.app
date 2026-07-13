@@ -1,6 +1,6 @@
 export * from './types'
-export * from './browser-agent'
-export * from './fetcher'
+export { ResearchBrowserAgent, BrowserAgent } from './browser-agent'
+export { ExistingBrowserFetcher } from './fetcher'
 export * from './extractor'
 export * from './normalizer'
 export * from './validator'
