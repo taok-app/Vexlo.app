@@ -46,7 +46,7 @@ export interface RuntimeCheckpoint {
   stage: RuntimeStage
   timestamp: number
   planResult?: PlannerResult
-  searchResults?: GeneratedSearchQuery[]
+  searchResults?: SearchTask[]
   browserResults?: RetrievedSource[]
   reasoningResult?: ReasoningResultLike
 }

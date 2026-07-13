@@ -20,6 +20,12 @@ import {
 import { executeWithRetry, DEFAULT_RETRY_POLICY } from './retry'
 import { BoundedScheduler } from './scheduler'
 import { validatePlannerInput, validateRuntimeOptions, validateDependencies, logValidationErrors } from './validator'
+import { RuntimeWorkflowIntegration } from './integration'
+import { WorkflowPresets } from '@/lib/research/workflow/presets'
+import { DefaultStageRegistry } from '@/lib/research/workflow/registry'
+import { createRuntimeContext, recordMetric, recordFailure } from '@/lib/research/middleware/context'
+import { getBuiltinMiddleware } from '@/lib/research/middleware/builtins'
+import type { WorkflowContext } from '@/lib/research/workflow/types'
 
 export class ResearchRuntime {
   private stage: RuntimeStage = RuntimeStage.IDLE
@@ -34,6 +40,8 @@ export class ResearchRuntime {
   private browser: BrowserAgent
   private options: RuntimeOptions
   private deps: RuntimeDependencies
+  private workflowIntegration: RuntimeWorkflowIntegration | null = null
+  private stageRegistry: any = null
 
   constructor(options: RuntimeOptions = {}, deps: RuntimeDependencies = {}) {
     const optionsValidation = validateRuntimeOptions(options)
@@ -64,6 +72,20 @@ export class ResearchRuntime {
     this.planner = new PlannerAgent()
     this.search = new SearchAgent()
     this.browser = new BrowserAgent()
+
+    // Initialize workflow integration
+    this.stageRegistry = new DefaultStageRegistry()
+    const workflow = WorkflowPresets.standardResearch()
+    const builtinMiddleware = [
+      getBuiltinMiddleware('logging'),
+      getBuiltinMiddleware('timing'),
+      getBuiltinMiddleware('retry'),
+    ].filter((m) => m !== undefined) as any[]
+    this.workflowIntegration = new RuntimeWorkflowIntegration(
+      workflow,
+      this.stageRegistry as any,
+      builtinMiddleware as any,
+    )
   }
 
   async run(input: PlannerInput, checkpoint?: RuntimeCheckpoint): Promise<RuntimeOutput> {
@@ -81,105 +103,99 @@ export class ResearchRuntime {
     const graph = new EvidenceGraph()
     const builder = new EvidenceGraphBuilder({ ...graph.snapshot() })
     const timings: Record<RuntimeStage, number> = {} as Record<RuntimeStage, number>
+    const stageResults: Record<string, unknown> = {}
+
+    if (!this.workflowIntegration) {
+      throw new Error('Workflow integration not initialized')
+    }
 
     try {
-      // Stage 1: Planning
-      const planStart = Date.now()
-      this.emitter.emit(createStageStartEvent(RuntimeStage.PLANNING))
-
-      const planResult = await executeWithRetry(
-        () => this.planner.plan(input),
-        'Planner',
-        this.options.retryPolicy,
-        this.abortController.signal,
-      )
-      const plannerResult: PlannerResult = {
-        plan: planResult,
-        confidence: 0.8,
-        taskCount: (planResult as unknown as { tasks?: unknown[] }).tasks?.length || 0,
+      // Get workflow execution order
+      const workflowContext: WorkflowContext = {
+        stageResults,
+        input,
+        timestamp: this.startTime,
       }
-      timings[RuntimeStage.PLANNING] = Date.now() - planStart
-      this.emitter.emit(createStageCompleteEvent(RuntimeStage.PLANNING, plannerResult))
+      const executionOrder = this.workflowIntegration.getExecutionOrder(workflowContext)
 
-      // Stage 2: Searching
-      this.stage = RuntimeStage.SEARCHING
-      const searchStart = Date.now()
-      this.emitter.emit(createStageStartEvent(RuntimeStage.SEARCHING))
+      // Execute each stage through workflow + middleware
+      for (const stageId of executionOrder) {
+        const runtimeStage = stageId as RuntimeStage
+        this.stage = runtimeStage
 
-      const searchResults = (await executeWithRetry(
-        () => this.search.search(planResult, { maxExpansions: 3 }),
-        'Search',
-        this.options.retryPolicy,
-        this.abortController.signal,
-      )) as SearchTask[]
-      timings[RuntimeStage.SEARCHING] = Date.now() - searchStart
-      this.emitter.emit(createStageCompleteEvent(RuntimeStage.SEARCHING, searchResults))
-
-      // Stage 3: Browsing
-      this.stage = RuntimeStage.BROWSING
-      const browserStart = Date.now()
-      this.emitter.emit(createStageStartEvent(RuntimeStage.BROWSING))
-
-      const browserResults = await this.browser.retrieve(searchResults, {
-        maxConcurrent: this.options.maxConcurrentBrowserRequests || 5,
-        timeout: this.options.browserTimeout || 300000,
-        failFast: this.options.failFast ?? true,
-      })
-      timings[RuntimeStage.BROWSING] = Date.now() - browserStart
-      this.emitter.emit(createStageCompleteEvent(RuntimeStage.BROWSING, browserResults))
-
-      // Stage 4: Reasoning (if adapter available)
-      let reasoningResult = undefined
-      if (this.deps.reasoningAdapter) {
-        this.stage = RuntimeStage.REASONING
-        const reasoningStart = Date.now()
-        this.emitter.emit(createStageStartEvent(RuntimeStage.REASONING))
-
-        reasoningResult = await executeWithRetry(
-          () => this.deps.reasoningAdapter!.reason(searchResults, browserResults),
-          'Reasoning',
-          this.options.retryPolicy,
+        // Create runtime context for middleware
+        const middlewareContext = createRuntimeContext(
+          `exec-${this.startTime}`,
+          'research-workflow',
+          runtimeStage,
+          this.emitter,
           this.abortController.signal,
         )
-        timings[RuntimeStage.REASONING] = Date.now() - reasoningStart
-        this.emitter.emit(createStageCompleteEvent(RuntimeStage.REASONING, reasoningResult))
+
+        // Emit stage start event
+        this.emitter.emit(createStageStartEvent(runtimeStage))
+
+        const stageStart = Date.now()
+
+        try {
+          // Execute stage through middleware pipeline
+          const stageExecutor = () => this.executeStageLogic(runtimeStage, input, stageResults)
+          const result = await this.workflowIntegration.executeStage(stageId, middlewareContext, stageExecutor)
+
+          stageResults[stageId] = result
+          timings[runtimeStage] = Date.now() - stageStart
+
+          // Record metrics
+          recordMetric(middlewareContext, stageId, timings[runtimeStage])
+
+          this.emitter.emit(createStageCompleteEvent(runtimeStage, result))
+        } catch (error) {
+          const err = error instanceof Error ? error : new Error(String(error))
+          timings[runtimeStage] = Date.now() - stageStart
+          recordFailure(middlewareContext, stageId)
+          this.emitter.emit(createStageErrorEvent(runtimeStage, err))
+
+          if (this.options.failFast ?? true) {
+            throw err
+          }
+          logger.warn(`Stage ${stageId} failed but continuing`, { error: err.message })
+        }
       }
 
-      // Stage 5: Graph Building
-      this.stage = RuntimeStage.GRAPH_BUILDING
-      const graphStart = Date.now()
-      this.emitter.emit(createStageStartEvent(RuntimeStage.GRAPH_BUILDING))
+      // Build final output
+      const plannerResult = stageResults[RuntimeStage.PLANNING] as PlannerResult | undefined
+      const searchResults = stageResults[RuntimeStage.SEARCHING] as SearchTask[] | undefined
+      const browserResults = stageResults[RuntimeStage.BROWSING] as any[] | undefined
+      const reasoningResult = stageResults[RuntimeStage.REASONING] as any | undefined
 
       if (reasoningResult) {
         builder.addReasoningResult(reasoningResult)
       }
-      for (const source of browserResults) {
-        builder.addSource(source)
+      if (browserResults) {
+        for (const source of browserResults) {
+          builder.addSource(source)
+        }
       }
-
-      const graphSnapshot = graph.snapshot()
-      timings[RuntimeStage.GRAPH_BUILDING] = Date.now() - graphStart
-      this.emitter.emit(createStageCompleteEvent(RuntimeStage.GRAPH_BUILDING, graphSnapshot))
 
       // Complete
       this.stage = RuntimeStage.COMPLETE
       const totalTime = Date.now() - this.startTime
 
       const output: RuntimeOutput = {
-        graph: graphSnapshot,
+        graph: graph.snapshot(),
         stages: {
-          planner: plannerResult,
-          search: searchResults,
-          browser: browserResults,
+          planner: plannerResult || { plan: null, confidence: 0, taskCount: 0 },
+          search: searchResults || [],
+          browser: browserResults || [],
           reasoning: reasoningResult,
         },
         timing: {
           total: totalTime,
-          planning: timings[RuntimeStage.PLANNING],
-          searching: timings[RuntimeStage.SEARCHING],
-          browsing: timings[RuntimeStage.BROWSING],
+          planning: timings[RuntimeStage.PLANNING] || 0,
+          searching: timings[RuntimeStage.SEARCHING] || 0,
+          browsing: timings[RuntimeStage.BROWSING] || 0,
           reasoning: timings[RuntimeStage.REASONING],
-          graphBuilding: timings[RuntimeStage.GRAPH_BUILDING],
+          graphBuilding: timings[RuntimeStage.GRAPH_BUILDING] || 0,
         },
         checkpoints: this.checkpoint ? [this.checkpoint] : [],
       }
@@ -196,6 +212,46 @@ export class ResearchRuntime {
       this.emitter.emit(createStageErrorEvent(this.stage, err))
       logger.error('[Runtime] Research execution failed', { error: err.message })
       throw err
+    }
+  }
+
+  private async executeStageLogic(
+    stage: RuntimeStage,
+    input: PlannerInput,
+    results: Record<string, unknown>,
+  ): Promise<unknown> {
+    switch (stage) {
+      case RuntimeStage.PLANNING:
+        return this.planner.plan(input)
+
+      case RuntimeStage.SEARCHING: {
+        const planResult = results[RuntimeStage.PLANNING]
+        return this.search.search(planResult, { maxExpansions: 3 })
+      }
+
+      case RuntimeStage.BROWSING: {
+        const searchResults = results[RuntimeStage.SEARCHING] as SearchTask[]
+        return this.browser.retrieve(searchResults, {
+          maxConcurrent: this.options.maxConcurrentBrowserRequests || 5,
+          timeout: this.options.browserTimeout || 300000,
+          failFast: this.options.failFast ?? true,
+        }) as any
+      }
+
+      case RuntimeStage.REASONING: {
+        if (!this.deps.reasoningAdapter) {
+          return undefined
+        }
+        const searchResults = results[RuntimeStage.SEARCHING] as SearchTask[]
+        const browserResults = results[RuntimeStage.BROWSING] as any[]
+        return this.deps.reasoningAdapter.reason(searchResults, browserResults) as any
+      }
+
+      case RuntimeStage.GRAPH_BUILDING:
+        return results[RuntimeStage.GRAPH_BUILDING] || null
+
+      default:
+        throw new Error(`Unknown stage: ${stage}`)
     }
   }
 
