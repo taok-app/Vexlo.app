@@ -29,7 +29,9 @@ export function middleware(request: NextRequest) {
 
   // If accessing a protected route without session, redirect to login
   if (!isPublicRoute && !sessionCookie) {
-    return NextResponse.redirect(new URL('/auth/login', request.url))
+    const loginUrl = new URL('/auth/login', request.url)
+    loginUrl.searchParams.set('next', pathname)
+    return NextResponse.redirect(loginUrl)
   }
 
   return NextResponse.next()
