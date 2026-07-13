@@ -27,8 +27,6 @@ export type {
 // Provider Interface
 export {
   SearchProvider,
-  ProviderHealthStatus,
-  ProviderExecutionResult,
   SearchProviderError,
   ProviderAuthenticationError,
   ProviderRateLimitError,
@@ -36,6 +34,10 @@ export {
   ProviderTimeoutError,
   ProviderUnavailableError,
   ProviderConfigurationError,
+} from './provider'
+export type {
+  ProviderHealthStatus,
+  ProviderExecutionResult,
 } from './provider'
 
 // Error Hierarchy
@@ -85,7 +87,7 @@ export {
 } from './normalization'
 
 // Deduplication
-export type { DeduplicationStrategy }
+export type { DeduplicationStrategy } from './deduplication'
 export {
   UrlDeduplicationStrategy,
   DomainDeduplicationStrategy,

@@ -19,8 +19,9 @@ import type {
   ConfidenceScore,
   PlanTask,
   GeneratedSearchQuery,
+  RequiredTools,
 } from './types'
-import { IntentType as IntentEnum, ReasoningStrategy as ReasoningStrategyEnum, createConfidenceScore } from './types'
+import { IntentType as IntentEnum, ReasoningStrategy as ReasoningStrategyEnum, TaskPriority, createConfidenceScore } from './types'
 import { validateExecutionPlan } from './validator'
 import * as prompts from './prompts'
 
@@ -226,7 +227,7 @@ export class PlannerAgent {
     query: string,
     tasks: PlanTask[],
     searchQueries: GeneratedSearchQuery[],
-  ): Promise<Record<string, unknown>> {
+  ): Promise<RequiredTools> {
     try {
       const taskSummary = tasks.map((t) => t.type).join(', ')
       const prompt = prompts.SELECT_TOOLS_PROMPT.replace('{objective}', query)
@@ -395,10 +396,12 @@ export class PlannerAgent {
   /**
    * Normalize priority from string
    */
-  private normalizePriority(priority: string): 'normal' {
-    // For now, return normal priority
-    // Can be expanded to support different priorities
-    return 'normal'
+  private normalizePriority(priority: string): TaskPriority {
+    const normalized = String(priority || '').toUpperCase()
+    if (Object.values(TaskPriority).includes(normalized as TaskPriority)) {
+      return normalized as TaskPriority
+    }
+    return TaskPriority.NORMAL
   }
 
   /**
@@ -410,7 +413,7 @@ export class PlannerAgent {
         id: `task_search_${nanoid(8)}`,
         type: 'search' as TaskType,
         description: `Search for information about \"${analysis.mainTopic}\"`,
-        priority: 'high' as const,
+        priority: TaskPriority.HIGH,
         dependsOn: [],
         expectedOutput: `Search results and relevant sources about ${analysis.mainTopic}`,
         estimatedTokens: 500,
@@ -419,7 +422,7 @@ export class PlannerAgent {
         id: `task_synthesize_${nanoid(8)}`,
         type: 'synthesize' as TaskType,
         description: 'Synthesize findings into coherent answer',
-        priority: 'high' as const,
+        priority: TaskPriority.HIGH,
         dependsOn: [`task_search_${nanoid(8)}`],
         expectedOutput: 'Comprehensive answer addressing the query',
         estimatedTokens: 1000,

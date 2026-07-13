@@ -20,11 +20,13 @@ export function DashboardLayout({ children, breadcrumb }: DashboardLayoutProps) 
 
   // Close sidebar on route change
   useEffect(() => {
-    setSidebarOpen(false)
+    const t = setTimeout(() => setSidebarOpen(false), 0)
+    return () => clearTimeout(t)
   }, [])
 
   useEffect(() => {
-    setMounted(true)
+    const t = setTimeout(() => setMounted(true), 0)
+    return () => clearTimeout(t)
   }, [])
 
   // Check for authentication on client side

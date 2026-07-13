@@ -65,7 +65,7 @@ function TypingPrompt() {
           setDisplayed(current.slice(0, displayed.length + 1))
         }, 38)
       } else {
-        setIsPaused(true)
+        timerRef.current = setTimeout(() => setIsPaused(true), 0)
       }
     } else {
       if (displayed.length > 0) {
@@ -73,8 +73,10 @@ function TypingPrompt() {
           setDisplayed(displayed.slice(0, -1))
         }, 18)
       } else {
-        setIsDeleting(false)
-        setIndex((i) => (i + 1) % examplePrompts.length)
+        timerRef.current = setTimeout(() => {
+          setIsDeleting(false)
+          setIndex((i) => (i + 1) % examplePrompts.length)
+        }, 0)
       }
     }
 

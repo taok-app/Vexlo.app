@@ -51,7 +51,7 @@ export class BoundedScheduler {
 
       Promise.resolve()
         .then(() => this.process(queuedTask as ScheduledTask<unknown>))
-        .then(resolve)
+        .then((result) => resolve(result as T))
         .catch(reject)
     })
   }

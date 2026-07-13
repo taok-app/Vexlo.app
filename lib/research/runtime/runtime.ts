@@ -2,8 +2,8 @@ import { createLogger } from '@/lib/logging'
 import { PlannerAgent } from '@/lib/research/planner/planner'
 
 const logger = createLogger('[ResearchRuntime]')
-import { SearchAgent } from '@/lib/research/search/search-agent'
-import { BrowserAgent } from '@/lib/research/browser/browser-agent'
+import { SearchAgent, ResearchSearchAgent } from '@/lib/research/search/search-agent'
+import { BrowserAgent, ResearchBrowserAgent } from '@/lib/research/browser/browser-agent'
 import { EvidenceGraph } from '@/lib/research/evidence/graph'
 import { EvidenceGraphBuilder } from '@/lib/research/evidence/builder'
 import type { PlannerInput } from '@/lib/research/planner/types'
@@ -20,6 +20,7 @@ import {
 import { executeWithRetry, DEFAULT_RETRY_POLICY } from './retry'
 import { BoundedScheduler } from './scheduler'
 import { validatePlannerInput, validateRuntimeOptions, validateDependencies, logValidationErrors } from './validator'
+import type { WorkflowContext } from '@/lib/research/workflow/types'
 
 export class ResearchRuntime {
   private stage: RuntimeStage = RuntimeStage.IDLE
@@ -30,8 +31,8 @@ export class ResearchRuntime {
   private scheduler: BoundedScheduler
   private checkpoint: RuntimeCheckpoint | null = null
   private planner: PlannerAgent
-  private search: SearchAgent
-  private browser: BrowserAgent
+  private search: ResearchSearchAgent
+  private browser: ResearchBrowserAgent
   private options: RuntimeOptions
   private deps: RuntimeDependencies
   private workflowIntegration: any = null
@@ -219,7 +220,7 @@ export class ResearchRuntime {
 
       logger.info('[Runtime] Research execution completed', {
         totalTime,
-        stageTiming: Object.fromEntries(timings),
+        stageTiming: Object.fromEntries(Object.entries(timings)),
       })
 
       return output
@@ -243,16 +244,16 @@ export class ResearchRuntime {
 
       case RuntimeStage.SEARCHING: {
         const planResult = results[RuntimeStage.PLANNING]
-        return this.search.search(planResult, { maxExpansions: 3 })
+        return this.search.generate(planResult as any, { expansion: { maxExpansions: 3 } } as any)
       }
 
       case RuntimeStage.BROWSING: {
         const searchResults = results[RuntimeStage.SEARCHING] as SearchTask[]
-        return this.browser.retrieve(searchResults, {
+        return this.browser.execute(searchResults, {
           maxConcurrent: this.options.maxConcurrentBrowserRequests || 5,
           timeout: this.options.browserTimeout || 300000,
           failFast: this.options.failFast ?? true,
-        }) as any
+        } as any) as any
       }
 
       case RuntimeStage.REASONING: {

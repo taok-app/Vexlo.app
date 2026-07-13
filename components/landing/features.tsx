@@ -1,6 +1,12 @@
 'use client'
 
 import { motion } from 'framer-motion'
+
+// Pre-computed stable random values to avoid calling Math.random() during render
+const EMBEDDING_OPACITIES = Array.from({ length: 24 }, () => ({
+  whileInView: Math.random() * 0.6 + 0.1,
+  style: Math.random() * 0.5 + 0.1,
+}))
 import { Search, Globe, BookOpen, Quote, GitBranch, Code2, Rocket, Database, Cpu, CheckCircle2 } from 'lucide-react'
 
 /* ─── Research Feature ─── */
@@ -168,11 +174,11 @@ function KnowledgeUI() {
               <motion.div
                 key={i}
                 initial={{ opacity: 0 }}
-                whileInView={{ opacity: Math.random() * 0.6 + 0.1 }}
+                whileInView={{ opacity: EMBEDDING_OPACITIES[i].whileInView }}
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.03 }}
                 className="w-3 h-3 rounded-sm bg-violet-400/40"
-                style={{ opacity: Math.random() * 0.5 + 0.1 }}
+                style={{ opacity: EMBEDDING_OPACITIES[i].style }}
               />
             ))}
           </div>

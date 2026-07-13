@@ -7,9 +7,9 @@
 import type {
   SearchRequest,
   SearchResult,
-} from './types'
-import { SearchProvider, ProviderHealthStatus } from './provider'
-import type { ProviderCapabilities } from './types'
+} from '../types'
+import { SearchProvider, ProviderHealthStatus } from '../provider'
+import type { ProviderCapabilities } from '../types'
 
 /**
  * Mock search provider for testing

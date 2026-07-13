@@ -8,8 +8,8 @@
 import type {
   SearchQuery,
   ProviderSelectionOptions,
-  ProviderSelectionStrategy,
 } from './types'
+import { ProviderSelectionStrategy } from './types'
 import type { ProviderCapabilities } from './types'
 import { getProviderRegistry } from './registry'
 import { ProviderNotFoundError } from './errors'
@@ -29,23 +29,24 @@ export class ProviderSelector {
   selectProviders(
     query: SearchQuery,
     options: ProviderSelectionOptions = {
-      strategy: 'all',
+      strategy: ProviderSelectionStrategy.ALL,
     },
   ): string[] {
     switch (options.strategy) {
-      case 'all':
+      case ProviderSelectionStrategy.ALL:
         return this.selectAll()
-      case 'primary':
+      case ProviderSelectionStrategy.PRIMARY:
         return this.selectPrimary()
-      case 'specific':
+      case ProviderSelectionStrategy.SPECIFIC:
         return this.selectSpecific(options.providers || [])
-      case 'capability_match':
+      case ProviderSelectionStrategy.CAPABILITY_MATCH:
         return this.selectByCapability(options.requiredCapabilities || [])
-      case 'auto':
+      case ProviderSelectionStrategy.AUTO:
         return this.selectAuto(query, options)
-      default:
+      default: {
         const exhaustive: never = options.strategy
         throw new Error(`Unknown selection strategy: ${exhaustive}`)
+      }
     }
   }
 

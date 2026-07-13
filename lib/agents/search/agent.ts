@@ -14,6 +14,7 @@ import type {
   SearchExecutionContext,
   ProviderSelectionOptions,
 } from './types'
+import { ProviderSelectionStrategy } from './types'
 import type { ProviderExecutionResult } from './provider'
 import {
   normalizeSearchResults,
@@ -29,16 +30,16 @@ import { getProviderFactory } from './factory'
 import { getProviderSelector } from './selector'
 import {
   executeWithRetry,
-  DEFAULT_RETRY_CONFIG,
 } from './retry'
-import { executeWithTimeout } from './timeout'
-import { searchTelemetry } from './telemetry'
-import { generateSearchId, generateRequestId, measureTime } from './utils'
 import {
   DEFAULT_SEARCH_TIMEOUT_MS,
   DEFAULT_RESULT_LIMIT,
   MAX_CONCURRENT_PROVIDERS,
+  DEFAULT_RETRY_CONFIG,
 } from './constants'
+import { executeWithTimeout } from './timeout'
+import { searchTelemetry } from './telemetry'
+import { generateSearchId, generateRequestId, measureTime } from './utils'
 import {
   SearchTimeoutError,
   AllProvidersFailedError,
@@ -118,7 +119,7 @@ export class SearchAgent {
 
     // Step 1: Select providers
     const selectedProviders = this.selector.selectProviders(query, {
-      strategy: 'all',
+      strategy: ProviderSelectionStrategy.ALL,
     })
 
     if (selectedProviders.length === 0) {
