@@ -34,7 +34,6 @@ export async function GET() {
       sandboxes: runningSandboxes,
     })
   } catch (error) {
-    console.error('Error fetching sandboxes:', error)
     return NextResponse.json({ error: 'Failed to fetch sandboxes' }, { status: 500 })
   }
 }
