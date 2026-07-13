@@ -6,12 +6,12 @@ import Link from 'next/link'
 import { Github, ChevronRight, Menu, X } from 'lucide-react'
 
 const navItems = [
-  { label: 'Product', href: '#platform' },
-  { label: 'Research', href: '#research' },
-  { label: 'Engineering', href: '#engineering' },
-  { label: 'Agents', href: '#agents' },
-  { label: 'Pricing', href: '#pricing' },
-  { label: 'Docs', href: '#docs' },
+  { label: 'Product', href: '/dashboard' },
+  { label: 'Research', href: '/research' },
+  { label: 'Engineering', href: '/engineering' },
+  { label: 'Agents', href: '/dashboard' },
+  { label: 'Pricing', href: '/settings/billing' },
+  { label: 'Docs', href: '/knowledge' },
 ]
 
 export function LandingNavbar() {
@@ -30,9 +30,7 @@ export function LandingNavbar() {
       animate={{ y: 0, opacity: 1 }}
       transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-        scrolled
-          ? 'bg-[#050508]/90 backdrop-blur-xl border-b border-white/[0.06]'
-          : 'bg-transparent'
+        scrolled ? 'bg-[#050508]/90 backdrop-blur-xl border-b border-white/[0.06]' : 'bg-transparent'
       }`}
     >
       <nav className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
@@ -47,13 +45,13 @@ export function LandingNavbar() {
         {/* Desktop nav */}
         <div className="hidden md:flex items-center gap-1">
           {navItems.map((item) => (
-            <a
+            <Link
               key={item.label}
               href={item.href}
               className="px-3 py-1.5 text-sm text-white/50 hover:text-white/90 transition-colors duration-150 rounded-md hover:bg-white/[0.05]"
             >
               {item.label}
-            </a>
+            </Link>
           ))}
         </div>
 
@@ -69,7 +67,7 @@ export function LandingNavbar() {
             <Github className="w-4 h-4" />
           </a>
           <Link
-            href="/tasks"
+            href="/dashboard"
             className="flex items-center gap-1.5 bg-white text-black text-sm font-medium px-4 py-1.5 rounded-full hover:bg-white/90 transition-all duration-150"
           >
             Start Building
@@ -99,18 +97,18 @@ export function LandingNavbar() {
           >
             <div className="px-6 py-4 flex flex-col gap-1">
               {navItems.map((item) => (
-                <a
+                <Link
                   key={item.label}
                   href={item.href}
                   onClick={() => setMobileOpen(false)}
                   className="py-2.5 text-sm text-white/60 hover:text-white transition-colors"
                 >
                   {item.label}
-                </a>
+                </Link>
               ))}
               <div className="pt-4 flex flex-col gap-3">
                 <Link
-                  href="/tasks"
+                  href="/dashboard"
                   className="w-full flex items-center justify-center gap-1.5 bg-white text-black text-sm font-medium px-4 py-2.5 rounded-full"
                 >
                   Start Building
