@@ -42,14 +42,14 @@ export function CTASection() {
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link
-              href="/dashboard"
+              href="/auth/login?next=/dashboard"
               className="group flex items-center gap-2 bg-white text-black text-sm font-semibold px-8 py-3.5 rounded-full hover:bg-blue-50 transition-all duration-200 shadow-lg shadow-black/20"
             >
               Start Building for Free
               <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
             </Link>
             <Link
-              href="/settings"
+              href="/auth/login?next=/settings"
               className="flex items-center gap-2 bg-white/[0.05] border border-white/[0.08] text-white/60 hover:text-white text-sm font-medium px-8 py-3.5 rounded-full hover:bg-white/[0.08] transition-all duration-200"
             >
               Book a Demo

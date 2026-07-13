@@ -194,14 +194,14 @@ export function HeroSection() {
           className="flex flex-col sm:flex-row items-center gap-3 mb-16"
         >
           <Link
-            href="/dashboard"
+            href="/auth/login?next=/dashboard"
             className="group flex items-center gap-2 bg-white text-black text-sm font-semibold px-6 py-3 rounded-full hover:bg-blue-50 transition-all duration-200 shadow-lg shadow-black/20"
           >
             Start Building
             <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
           </Link>
           <Link
-            href="/settings"
+            href="/auth/login?next=/settings"
             className="flex items-center gap-2 bg-white/[0.05] border border-white/[0.08] text-white/70 hover:text-white text-sm font-medium px-6 py-3 rounded-full hover:bg-white/[0.08] transition-all duration-200"
           >
             Book a Demo

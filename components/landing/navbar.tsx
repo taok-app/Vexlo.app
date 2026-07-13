@@ -6,12 +6,12 @@ import Link from 'next/link'
 import { Github, ChevronRight, Menu, X } from 'lucide-react'
 
 const navItems = [
-  { label: 'Product', href: '/dashboard' },
-  { label: 'Research', href: '/research' },
-  { label: 'Engineering', href: '/engineering' },
-  { label: 'Agents', href: '/dashboard' },
-  { label: 'Pricing', href: '/settings/billing' },
-  { label: 'Docs', href: '/knowledge' },
+  { label: 'Product', href: '/auth/login?next=/dashboard' },
+  { label: 'Research', href: '/auth/login?next=/research' },
+  { label: 'Engineering', href: '/auth/login?next=/engineering' },
+  { label: 'Agents', href: '/auth/login?next=/dashboard' },
+  { label: 'Pricing', href: '/auth/login?next=/settings/billing' },
+  { label: 'Docs', href: '/auth/login?next=/knowledge' },
 ]
 
 export function LandingNavbar() {
@@ -67,7 +67,7 @@ export function LandingNavbar() {
             <Github className="w-4 h-4" />
           </a>
           <Link
-            href="/dashboard"
+            href="/auth/login?next=/dashboard"
             className="flex items-center gap-1.5 bg-white text-black text-sm font-medium px-4 py-1.5 rounded-full hover:bg-white/90 transition-all duration-150"
           >
             Start Building
@@ -108,7 +108,7 @@ export function LandingNavbar() {
               ))}
               <div className="pt-4 flex flex-col gap-3">
                 <Link
-                  href="/dashboard"
+                  href="/auth/login?next=/dashboard"
                   className="w-full flex items-center justify-center gap-1.5 bg-white text-black text-sm font-medium px-4 py-2.5 rounded-full"
                 >
                   Start Building
