@@ -42,9 +42,11 @@ function RecentActivityItem() {
         <p className="text-sm font-medium truncate">Research session started</p>
         <p className="text-xs text-muted-foreground">2 hours ago</p>
       </div>
-      <Button variant="ghost" size="sm">
-        View
-      </Button>
+      <Link href="/research">
+        <Button variant="ghost" size="sm">
+          View
+        </Button>
+      </Link>
     </div>
   )
 }

@@ -132,9 +132,14 @@ export function HeroSection() {
 
       {/* Particles */}
       {[
-        { x: 12, y: 30, d: 0 }, { x: 85, y: 20, d: 1.2 }, { x: 25, y: 75, d: 0.8 },
-        { x: 68, y: 65, d: 2 }, { x: 45, y: 85, d: 0.4 }, { x: 90, y: 50, d: 1.6 },
-        { x: 5, y: 55, d: 0.9 }, { x: 55, y: 15, d: 1.8 },
+        { x: 12, y: 30, d: 0 },
+        { x: 85, y: 20, d: 1.2 },
+        { x: 25, y: 75, d: 0.8 },
+        { x: 68, y: 65, d: 2 },
+        { x: 45, y: 85, d: 0.4 },
+        { x: 90, y: 50, d: 1.6 },
+        { x: 5, y: 55, d: 0.9 },
+        { x: 55, y: 15, d: 1.8 },
       ].map((p, i) => (
         <Particle key={i} x={p.x} y={p.y} delay={p.d} />
       ))}
@@ -161,7 +166,8 @@ export function HeroSection() {
           className="text-center mb-6"
         >
           <h1 className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-bold text-white leading-[0.95] tracking-tight text-balance">
-            Build software<br />
+            Build software
+            <br />
             <span className="bg-clip-text text-transparent bg-gradient-to-br from-blue-400 via-blue-300 to-violet-400">
               10x faster
             </span>
@@ -186,20 +192,20 @@ export function HeroSection() {
           className="flex flex-col sm:flex-row items-center gap-3 mb-16"
         >
           <Link
-            href="/tasks"
+            href="/dashboard"
             className="group flex items-center gap-2 bg-white text-black text-sm font-semibold px-6 py-3 rounded-full hover:bg-blue-50 transition-all duration-200 shadow-lg shadow-black/20"
           >
             Start Building
             <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
           </Link>
-          <a
-            href="#demo"
+          <Link
+            href="/settings"
             className="flex items-center gap-2 bg-white/[0.05] border border-white/[0.08] text-white/70 hover:text-white text-sm font-medium px-6 py-3 rounded-full hover:bg-white/[0.08] transition-all duration-200"
           >
             Book a Demo
-          </a>
+          </Link>
           <a
-            href="https://github.com"
+            href="https://github.com/taok-app/Vexlo.app"
             target="_blank"
             rel="noreferrer"
             className="flex items-center gap-2 text-white/40 hover:text-white/70 text-sm transition-colors"

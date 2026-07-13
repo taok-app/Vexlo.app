@@ -29,7 +29,8 @@ export function CTASection() {
           </div>
 
           <h2 className="text-5xl md:text-6xl lg:text-7xl font-bold text-white leading-[0.95] tracking-tight text-balance mb-6">
-            Ship great software.<br />
+            Ship great software.
+            <br />
             <span className="bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-violet-400">
               Without limits.
             </span>
@@ -41,18 +42,18 @@ export function CTASection() {
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link
-              href="/tasks"
+              href="/dashboard"
               className="group flex items-center gap-2 bg-white text-black text-sm font-semibold px-8 py-3.5 rounded-full hover:bg-blue-50 transition-all duration-200 shadow-lg shadow-black/20"
             >
               Start Building for Free
               <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
             </Link>
-            <a
-              href="#demo"
+            <Link
+              href="/settings"
               className="flex items-center gap-2 bg-white/[0.05] border border-white/[0.08] text-white/60 hover:text-white text-sm font-medium px-8 py-3.5 rounded-full hover:bg-white/[0.08] transition-all duration-200"
             >
               Book a Demo
-            </a>
+            </Link>
           </div>
         </motion.div>
       </div>
@@ -103,13 +104,54 @@ export function LandingFooter() {
             <div key={category}>
               <div className="text-xs font-semibold text-white/40 uppercase tracking-widest mb-4">{category}</div>
               <ul className="space-y-2.5">
-                {links.map((link) => (
-                  <li key={link}>
-                    <a href="#" className="text-sm text-white/25 hover:text-white/60 transition-colors">
-                      {link}
-                    </a>
-                  </li>
-                ))}
+                {links.map((link) => {
+                  let href = '/'
+                  // Map footer links to app routes
+                  const linkMap: Record<string, string> = {
+                    Engineering: '/engineering',
+                    Research: '/research',
+                    'Knowledge Base': '/knowledge',
+                    'Agent Orchestration': '/dashboard',
+                    'Model Router': '/dashboard',
+                    Changelog: '/dashboard',
+                    Documentation: '/knowledge',
+                    'API Reference': '/dashboard',
+                    GitHub: 'https://github.com/taok-app/Vexlo.app',
+                    Status: '/dashboard',
+                    Community: 'https://github.com/taok-app/Vexlo.app',
+                    Integrations: '/settings',
+                    About: '/',
+                    Blog: '/',
+                    Careers: '/',
+                    Press: '/',
+                    Privacy: '/',
+                    Terms: '/',
+                  }
+                  href = linkMap[link] || '/'
+
+                  if (href.startsWith('http')) {
+                    return (
+                      <li key={link}>
+                        <a
+                          href={href}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-sm text-white/25 hover:text-white/60 transition-colors"
+                        >
+                          {link}
+                        </a>
+                      </li>
+                    )
+                  }
+
+                  return (
+                    <li key={link}>
+                      <Link href={href} className="text-sm text-white/25 hover:text-white/60 transition-colors">
+                        {link}
+                      </Link>
+                    </li>
+                  )
+                })}
               </ul>
             </div>
           ))}
@@ -121,9 +163,15 @@ export function LandingFooter() {
             &copy; {new Date().getFullYear()} Vexlo AI, Inc. All rights reserved.
           </div>
           <div className="flex gap-6 text-xs text-white/20">
-            <a href="#" className="hover:text-white/40 transition-colors">Privacy Policy</a>
-            <a href="#" className="hover:text-white/40 transition-colors">Terms of Service</a>
-            <a href="#" className="hover:text-white/40 transition-colors">Cookie Policy</a>
+            <Link href="/" className="hover:text-white/40 transition-colors">
+              Privacy Policy
+            </Link>
+            <Link href="/" className="hover:text-white/40 transition-colors">
+              Terms of Service
+            </Link>
+            <Link href="/" className="hover:text-white/40 transition-colors">
+              Cookie Policy
+            </Link>
           </div>
         </div>
       </div>
