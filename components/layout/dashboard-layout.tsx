@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { Sidebar } from './sidebar'
 import { Header } from './header'
-import { useSession } from '@/lib/atoms/session'
+import { useSession } from '@/hooks/useSession'
 import { useRouter } from 'next/navigation'
 import { Skeleton } from '@/components/ui/skeleton'
 

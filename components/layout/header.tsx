@@ -3,7 +3,7 @@
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Bell, Menu, Search } from 'lucide-react'
-import { useSession } from '@/lib/atoms/session'
+import { useSession } from '@/hooks/useSession'
 import { UserMenu } from './user-menu'
 import { ThemeToggle } from '@/components/theme-toggle'
 import { useState } from 'react'
