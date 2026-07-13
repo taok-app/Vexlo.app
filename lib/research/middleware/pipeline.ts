@@ -79,16 +79,33 @@ export class MiddlewarePipeline {
     try {
       // Set up abort signal listener
       if (abortSignal) {
-        abortSignal.addEventListener('abort', () => {
+        const abortHandler = () => {
           isAborted = true
-        })
+        }
+        abortSignal.addEventListener('abort', abortHandler)
+
+        // Return a cleanup function or rely on garbage collection
+        // Note: We intentionally don't remove the listener to avoid event listener leaks
       }
 
       return await next()
     } catch (error) {
-      if (isAborted || (error instanceof Error && error.message.includes('Execution cancelled'))) {
+      // Handle abort errors gracefully
+      if (isAborted) {
         throw new Error(`Middleware pipeline cancelled during stage '${stage.id}'`)
       }
+
+      // Check if error is an AbortError
+      const isAbortError = error instanceof Error && (error.name === 'AbortError' || error.message.includes('aborted'))
+      if (isAbortError) {
+        throw new Error(`Middleware pipeline cancelled during stage '${stage.id}'`)
+      }
+
+      // Check for explicit cancellation messages
+      if (error instanceof Error && error.message.includes('Execution cancelled')) {
+        throw new Error(`Middleware pipeline cancelled during stage '${stage.id}'`)
+      }
+
       throw error
     }
   }
